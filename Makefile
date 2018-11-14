@@ -1,6 +1,6 @@
 
 all:
-	pushd build && cmake -G Ninja -DCMAKE_TOOLCHAIN_FILE=../arm-gcc-toolchain.cmake .. && ninja && popd
+	cd build && cmake -G Ninja -DCMAKE_TOOLCHAIN_FILE=../arm-gcc-toolchain.cmake .. && ninja
 
 clean:
 	rm -rf build/*

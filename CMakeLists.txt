@@ -29,7 +29,7 @@ set_property(TARGET libopenthread-platform-utils PROPERTY IMPORTED_LOCATION ${CM
 add_library(libnrf_cc310 STATIC IMPORTED)
 set_property(TARGET libnrf_cc310 PROPERTY IMPORTED_LOCATION ${CMAKE_CURRENT_SOURCE_DIR}/third_party/openthread/third_party/NordicSemiconductor/libraries/nrf_cc310/lib/libnrf_cc310_0.9.10.a)
 
-add_dependencies(libopenthread-nrf52840 openthread)
+#add_dependencies(libopenthread-nrf52840 openthread)
 
 set(
     OT_LIBS
@@ -131,6 +131,20 @@ add_executable(
 target_link_libraries (sh_rmt ${OT_LIBS} nrfx)
 
 FinalizeHex(sh_rmt)
+
+######################################
+# Prepare the Shades Controller binary
+######################################
+
+add_executable(
+    sh_cnt
+    src/apps/sh_cnt/main.c
+    src/apps/sh_cnt/sh_cnt_rly.c
+)
+
+target_link_libraries (sh_cnt ${OT_LIBS} nrfx)
+
+FinalizeHex(sh_cnt)
 
 ############
 # Some tests
