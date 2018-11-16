@@ -4,11 +4,26 @@ cmake_minimum_required (VERSION 2.6)
 # Compile OpenThread as an libraries set
 ########################################
 
+add_custom_command(
+    OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/third_party/openthread/output/nrf52840/lib/libmbedcrypto.a
+    OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/third_party/openthread/output/nrf52840/lib/libopenthread-diag.a
+    OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/third_party/openthread/output/nrf52840/lib/libopenthread-nrf52840.a
+    OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/third_party/openthread/output/nrf52840/lib/libopenthread-ftd.a
+    OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/third_party/openthread/output/nrf52840/lib/libopenthread-platform-utils.a
+    OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/third_party/openthread/third_party/NordicSemiconductor/libraries/nrf_cc310/lib/libnrf_cc310_0.9.10.a
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/third_party/openthread
+    COMMAND ./bootstrap
+    COMMAND make -f examples/Makefile-nrf52840 DISABLE_CC310=1 JOINER=1
+)
+
 add_custom_target(
     openthread
-    COMMAND cd ${CMAKE_CURRENT_SOURCE_DIR}/third_party/openthread
-    COMMAND ./bootstrap
-    COMMAND make -f examples/Makefile-nrf52840 JOINER=1
+    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/openthread/output/nrf52840/lib/libmbedcrypto.a
+    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/openthread/output/nrf52840/lib/libopenthread-diag.a
+    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/openthread/output/nrf52840/lib/libopenthread-nrf52840.a
+    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/openthread/output/nrf52840/lib/libopenthread-ftd.a
+    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/openthread/output/nrf52840/lib/libopenthread-platform-utils.a
+    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/openthread/third_party/NordicSemiconductor/libraries/nrf_cc310/lib/libnrf_cc310_0.9.10.a
 )
 
 add_library(libmbedcrypto STATIC IMPORTED)
@@ -29,7 +44,7 @@ set_property(TARGET libopenthread-platform-utils PROPERTY IMPORTED_LOCATION ${CM
 add_library(libnrf_cc310 STATIC IMPORTED)
 set_property(TARGET libnrf_cc310 PROPERTY IMPORTED_LOCATION ${CMAKE_CURRENT_SOURCE_DIR}/third_party/openthread/third_party/NordicSemiconductor/libraries/nrf_cc310/lib/libnrf_cc310_0.9.10.a)
 
-#add_dependencies(libopenthread-nrf52840 openthread)
+add_dependencies(libopenthread-ftd openthread)
 
 set(
     OT_LIBS
