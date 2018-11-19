@@ -11,6 +11,7 @@ add_custom_command(
     OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/third_party/openthread/output/nrf52840/lib/libopenthread-ftd.a
     OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/third_party/openthread/output/nrf52840/lib/libopenthread-platform-utils.a
     OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/third_party/openthread/third_party/NordicSemiconductor/libraries/nrf_cc310/lib/libnrf_cc310_0.9.10.a
+    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/openthread
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/third_party/openthread
     COMMAND ./bootstrap
     COMMAND make -f examples/Makefile-nrf52840 DISABLE_CC310=1 JOINER=1
@@ -81,6 +82,10 @@ set(
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party/nrfx/templates/nRF52840
 )
 
+target_compile_definitions(nrfx
+    PUBLIC "NRF52840_XXAA"
+)
+
 ###############
 # Prepare CMSIS
 ###############
@@ -93,11 +98,6 @@ set(CMSIS_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/CMSIS_5/CMSIS/Cor
 
 set(LINKER_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/third_party/openthread/examples/platforms/nrf52840/nrf52840.ld")
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -T ${LINKER_SCRIPT}")
-
-set(
-    COMPILE_DEFINES
-    "NRF52840_XXAA"
-)
 
 macro(CreateHex target)
     ADD_CUSTOM_COMMAND(
@@ -129,8 +129,6 @@ project (ot_gpio)
 include_directories (${OT_INCLUDE_DIRS})
 include_directories (${NRFX_INCLUDE_DIRS})
 include_directories (${CMSIS_INCLUDE_DIRS})
-
-add_compile_definitions(${COMPILE_DEFINES})
 
 ##################################
 # Prepare the Shades Remote binary
