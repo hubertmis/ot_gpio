@@ -14,7 +14,7 @@ add_custom_command(
     DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/openthread
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/third_party/openthread
     COMMAND ./bootstrap
-    COMMAND make -f examples/Makefile-nrf52840 DISABLE_CC310=1 JOINER=1
+    COMMAND make -f examples/Makefile-nrf52840 JOINER=1
 )
 
 add_custom_target(
@@ -51,8 +51,8 @@ set(
     OT_LIBS
     libopenthread-ftd
     libopenthread-platform-utils
-    libopenthread-nrf52840
     libmbedcrypto
+    libopenthread-nrf52840
     libopenthread-diag
     libnrf_cc310
 )
