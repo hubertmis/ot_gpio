@@ -70,6 +70,7 @@ set(
 add_library(
     nrfx
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party/nrfx/drivers/src/nrfx_gpiote.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/nrfx/drivers/src/nrfx_rtc.c
 )
 
 set(
