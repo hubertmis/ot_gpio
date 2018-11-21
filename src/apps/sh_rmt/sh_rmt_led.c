@@ -7,8 +7,8 @@
 
 #define PIN(PORT, NO) (PORT * 32 + NO)
 
-#define LED1  PIN(1, 10)
-#define LED2  PIN(1, 11)
+#define LED1  PIN(1, 11)
+#define LED2  PIN(1, 10)
 #define LED3  PIN(1, 13)
 #define LED4  PIN(1, 15)
 #define LED5  PIN(0, 3)
@@ -29,7 +29,7 @@ void sh_rmt_led_init(void)
         uint32_t pin = led_pins[i];
 
         nrf_gpio_cfg_output(pin);
-        nrf_gpio_pin_set(pin);
+        nrf_gpio_pin_clear(pin);
     }
 }
 

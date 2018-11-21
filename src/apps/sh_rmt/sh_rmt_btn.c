@@ -17,9 +17,11 @@
 #define BTN8 PIN(1, 0)
 #define BTN9 PIN(0, 22)
 
-#define NUM_BTNS 9
+//#define NUM_BTNS 9
+#define NUM_BTNS 8
 
-static const nrfx_gpiote_pin_t btn_pins[NUM_BTNS] = {BTN1, BTN2, BTN3, BTN4, BTN5, BTN6, BTN7, BTN8, BTN9};
+//static const nrfx_gpiote_pin_t btn_pins[NUM_BTNS] = {BTN1, BTN2, BTN3, BTN4, BTN5, BTN6, BTN7, BTN8, BTN9};
+static const nrfx_gpiote_pin_t btn_pins[NUM_BTNS] = {BTN1, BTN2, BTN3, BTN4, BTN5, BTN6, BTN7, BTN8};
 
 static bool btn_evts[NUM_BTNS];
 
@@ -49,11 +51,15 @@ static void btn_evt_handler(nrfx_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
 
 void sh_rmt_btn_init(void)
 {
-    nrfx_err_t                    err;
+    nrfx_err_t err;
+
+    err = nrfx_gpiote_init();
+    assert(err == NRFX_SUCCESS);
+
     const nrfx_gpiote_in_config_t btn_config =
             {
                 .is_watcher = false,
-                .hi_accuracy = false,
+                .hi_accuracy = true,
                 .pull = NRF_GPIO_PIN_PULLUP,
                 .sense = NRF_GPIOTE_POLARITY_HITOLO,
             };

@@ -53,7 +53,7 @@ int main(int argc, char *argv[])
             last_switch = now;
 
             sh_rmt_led_toggle((sh_rmt_led_idx_t)m_next_led/2);
-            m_next_led = (m_next_led + 1) % LED_CNT;
+            m_next_led = (m_next_led + 1) % (LED_CNT * 2);
         }
 
         //sh_rmt_btn_process();
