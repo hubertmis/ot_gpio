@@ -46,6 +46,7 @@ int main(int argc, char *argv[])
 
     while (1)
     {
+#if 0
         now = time_now();
 
         if (now > last_switch + SWITCH_DELAY)
@@ -55,8 +56,9 @@ int main(int argc, char *argv[])
             sh_rmt_led_toggle((sh_rmt_led_idx_t)m_next_led/2);
             m_next_led = (m_next_led + 1) % (LED_CNT * 2);
         }
+#endif
 
-        //sh_rmt_btn_process();
+        sh_rmt_btn_process();
 
         otTaskletsProcess(instance);
         otSysProcessDrivers(instance);

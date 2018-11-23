@@ -100,6 +100,8 @@ set(CMSIS_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/CMSIS_5/CMSIS/Cor
 set(LINKER_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/third_party/openthread/examples/platforms/nrf52840/nrf52840.ld")
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -T ${LINKER_SCRIPT}")
 
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -Os")
+
 macro(CreateHex target)
     ADD_CUSTOM_COMMAND(
         TARGET ${target}
