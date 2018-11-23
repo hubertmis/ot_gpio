@@ -26,7 +26,7 @@ static const uint32_t led_pins[] = {LED1, LED2, LED3, LED4, LED5, LED6, LED7, LE
 static uint32_t led_bitmap;
 
 
-#define RTC_FREQ 1000UL
+#define RTC_FREQ 2000UL
 static const nrfx_rtc_t nrfx_rtc_instance = NRFX_RTC_INSTANCE(0);
 
 static void rtc_handler(nrfx_rtc_int_type_t int_type)
@@ -35,7 +35,7 @@ static void rtc_handler(nrfx_rtc_int_type_t int_type)
 
     assert(int_type == NRFX_RTC_INT_COMPARE0);
 
-    uint32_t next_ctr = (nrfx_rtc_counter_get(&nrfx_rtc_instance) + 1) % nrfx_rtc_max_ticks_get(&nrfx_rtc_instance);
+    uint32_t next_ctr = (nrfx_rtc_counter_get(&nrfx_rtc_instance) + 3) % nrfx_rtc_max_ticks_get(&nrfx_rtc_instance);
     nrfx_rtc_cc_set(&nrfx_rtc_instance, 0, next_ctr, led_bitmap ? true : false);
 
     nrf_gpio_pin_clear(led_pins[m_last_led]);
@@ -81,13 +81,15 @@ void sh_rmt_led_init(void)
         nrf_gpio_cfg_output(pin);
         nrf_gpio_pin_clear(pin);
     }
+
+    rtc_init();
 }
 
 void sh_rmt_led_toggle(sh_rmt_led_idx_t idx)
 {
     led_bitmap ^= (1UL << idx);
 
-    uint32_t next_ctr = (nrfx_rtc_counter_get(&nrfx_rtc_instance) + 2) % nrfx_rtc_max_ticks_get(&nrfx_rtc_instance);
-    nrfx_rtc_cc_set(&nrfx_rtc_instance, 0, next_ctr, led_bitmap ? true : false);
+    uint32_t next_ctr = (nrfx_rtc_counter_get(&nrfx_rtc_instance) + 4) % nrfx_rtc_max_ticks_get(&nrfx_rtc_instance);
+    nrfx_rtc_cc_set(&nrfx_rtc_instance, 0, next_ctr, true);
 }
 
