@@ -75,12 +75,11 @@ add_library(
 
 set(
     NRFX_INCLUDE_DIRS
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/config
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party/nrfx
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party/nrfx/drivers/include
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party/nrfx/hal
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party/nrfx/mdk
-    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/nrfx/templates
-    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/nrfx/templates/nRF52840
 )
 
 target_compile_definitions(nrfx
