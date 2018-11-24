@@ -140,7 +140,11 @@ add_executable(
     sh_rmt
     src/apps/sh_rmt/main.c
     src/apps/sh_rmt/sh_rmt_btn.c
+    src/apps/sh_rmt/sh_rmt_btn.h
     src/apps/sh_rmt/sh_rmt_led.c
+    src/apps/sh_rmt/sh_rmt_led.h
+    src/apps/sh_rmt/sh_rmt_timer.c
+    src/apps/sh_rmt/sh_rmt_timer.h
 )
 
 target_link_libraries (sh_rmt ${OT_LIBS} nrfx)
@@ -155,6 +159,7 @@ add_executable(
     sh_cnt
     src/apps/sh_cnt/main.c
     src/apps/sh_cnt/sh_cnt_rly.c
+    src/apps/sh_cnt/sh_cnt_rly.h
 )
 
 target_link_libraries (sh_cnt ${OT_LIBS} nrfx)
