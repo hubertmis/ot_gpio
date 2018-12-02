@@ -24,6 +24,8 @@ static const nrfx_gpiote_pin_t btn_pins[NUM_BTNS] = {BTN1, BTN2, BTN3, BTN4, BTN
 
 static bool btn_evts[NUM_BTNS];
 
+static volatile bool ignore_evts;
+
 static void btn_evt_enqueue(sh_rmt_btn_idx_t i)
 {
     btn_evts[i] = true;
@@ -38,12 +40,24 @@ static void btn_evt_handler(nrfx_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
 {
     (void)action;
 
+    if (ignore_evts)
+    {
+        return;
+    }
+
+    if (nrfx_gpiote_in_is_set(pin))
+    {
+        ignore_evts = true;
+        sh_rmt_timer_btn_start();
+        return;
+    }
+
     for (int i = 0; i < sizeof(btn_pins) / sizeof(btn_pins[0]); i++)
     {
         if (btn_pins[i] == pin)
         {
             btn_evt_enqueue(i);
-            nrfx_gpiote_in_event_disable(btn_pins[i]);
+            ignore_evts = true;
             sh_rmt_timer_btn_start();
             break;
         }
@@ -62,7 +76,7 @@ void sh_rmt_btn_init(void)
                 .is_watcher = false,
                 .hi_accuracy = false,
                 .pull = NRF_GPIO_PIN_PULLUP,
-                .sense = NRF_GPIOTE_POLARITY_HITOLO,
+                .sense = NRF_GPIOTE_POLARITY_TOGGLE,
             };
     
     for (int i = 0; i < sizeof(btn_pins) / sizeof(btn_pins[0]); i++)
@@ -72,6 +86,8 @@ void sh_rmt_btn_init(void)
 
         nrfx_gpiote_in_event_enable(btn_pins[i], true);
     }
+
+    ignore_evts = false;
 }
 
 void sh_rmt_btn_process(void)
@@ -89,9 +105,6 @@ void sh_rmt_btn_process(void)
 
 void sh_rmt_timer_btn_fired(void)
 {
-    for (int i = 0; i < sizeof(btn_pins) / sizeof(btn_pins[0]); i++)
-    {
-        nrfx_gpiote_in_event_enable(btn_pins[i], true);
-    }
+    ignore_evts = false;
 }
 
