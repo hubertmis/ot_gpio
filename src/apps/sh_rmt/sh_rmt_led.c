@@ -61,6 +61,20 @@ void sh_rmt_led_init(void)
     }
 }
 
+void sh_rmt_led_on(sh_rmt_led_idx_t idx)
+{
+    led_bitmap |= (1UL << idx);
+
+    sh_rmt_timer_led_start();
+}
+
+void sh_rmt_led_off(sh_rmt_led_idx_t idx)
+{
+    led_bitmap &= (~(1UL << idx));
+
+    sh_rmt_timer_led_start();
+}
+
 void sh_rmt_led_toggle(sh_rmt_led_idx_t idx)
 {
     led_bitmap ^= (1UL << idx);

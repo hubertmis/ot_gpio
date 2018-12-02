@@ -84,6 +84,7 @@ set(
 
 target_compile_definitions(nrfx
     PUBLIC "NRF52840_XXAA"
+    PUBLIC "CONFIG_NFCT_PINS_AS_GPIOS"
 )
 
 ###############
@@ -139,10 +140,14 @@ include_directories (${CMSIS_INCLUDE_DIRS})
 add_executable(
     sh_rmt
     src/apps/sh_rmt/main.c
+    src/apps/sh_rmt/sh_rmt_anim.c
+    src/apps/sh_rmt/sh_rmt_anim.h
     src/apps/sh_rmt/sh_rmt_btn.c
     src/apps/sh_rmt/sh_rmt_btn.h
     src/apps/sh_rmt/sh_rmt_led.c
     src/apps/sh_rmt/sh_rmt_led.h
+    src/apps/sh_rmt/sh_rmt_prg.c
+    src/apps/sh_rmt/sh_rmt_prg.h
     src/apps/sh_rmt/sh_rmt_timer.c
     src/apps/sh_rmt/sh_rmt_timer.h
 )

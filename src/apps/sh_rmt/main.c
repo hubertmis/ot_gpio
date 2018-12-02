@@ -2,6 +2,7 @@
 #include <assert.h>
 #include <stdint.h>
 
+#include <cmsis_gcc.h>
 #include <openthread/tasklet.h>
 #include <openthread/platform/alarm-milli.h>
 #include "openthread-system.h"
@@ -17,12 +18,6 @@ static int m_next_led;
 static uint32_t time_now(void)
 {
     return otPlatAlarmMilliGetNow();
-}
-
-void sh_rmt_btn_evt(sh_rmt_btn_idx_t idx)
-{
-    // TODO: Process event correctly
-    sh_rmt_led_toggle((sh_rmt_led_idx_t)idx);
 }
 
 void otTaskletsSignalPending(otInstance *aInstance)
@@ -60,10 +55,16 @@ int main(int argc, char *argv[])
         }
 #endif
 
+        sh_rmt_timer_process();
         sh_rmt_btn_process();
 
         otTaskletsProcess(instance);
         otSysProcessDrivers(instance);
+
+        if (!sh_rmt_timer_is_pending())
+        {
+            __WFE();
+        }
     }
 
     return 0;
