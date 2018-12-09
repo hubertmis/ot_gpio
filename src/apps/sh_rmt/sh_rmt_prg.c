@@ -9,7 +9,8 @@
 
 #include "sh_rmt_anim.h"
 #include "sh_rmt_btn.h"
-#include "sh_rmt_timer.h"
+#include "sh_rmt_conn.h"
+#include "../../lib/timer/humi_timer.h"
 
 #define NUM_ZONES 7
 #define ALL_ZONES (0xFFFFFFFFUL >> (32 - NUM_ZONES))
@@ -45,7 +46,7 @@ typedef enum {
 } inactivity_t;
 static inactivity_t inactivity_step;
 
-static sh_rmt_timer_t inactivity_timer;
+static humi_timer_t inactivity_timer;
 
 static void set_direction(direction_t dir)
 {
@@ -58,14 +59,17 @@ static void set_direction(direction_t dir)
             break;
 
         case DIRECTION_STOP:
+            shr_rmt_conn_stop(active_zones);
             sh_rmt_anim_stop();
             break;
 
         case DIRECTION_UP:
+            shr_rmt_conn_up(active_zones);
             sh_rmt_anim_up();
             break;
 
         case DIRECTION_DOWN:
+            shr_rmt_conn_down(active_zones);
             sh_rmt_anim_down();
             break;
     }
@@ -78,10 +82,10 @@ static void inactivity_timeout(void *context)
         case INACTIVITY_FADE:
             sh_rmt_anim_fade_out_zones();
 
-            inactivity_timer.target_time = sh_rmt_timer_get_target_from_delay(INACTIVITY_TIME);
+            inactivity_timer.target_time = humi_timer_get_target_from_delay(INACTIVITY_TIME);
             inactivity_timer.callback    = inactivity_timeout;
             inactivity_timer.context     = (void *)INACTIVITY_SLEEP;
-            sh_rmt_timer_gen_add(&inactivity_timer);
+            humi_timer_gen_add(&inactivity_timer);
             break;
 
         case INACTIVITY_SLEEP:
@@ -157,8 +161,8 @@ void sh_rmt_btn_evt(sh_rmt_btn_idx_t idx)
 
     sh_rmt_anim_display_zones(active_zones);
 
-    inactivity_timer.target_time = sh_rmt_timer_get_target_from_delay(INACTIVITY_TIME);
+    inactivity_timer.target_time = humi_timer_get_target_from_delay(INACTIVITY_TIME);
     inactivity_timer.callback    = inactivity_timeout;
     inactivity_timer.context     = (void *)INACTIVITY_FADE;
-    sh_rmt_timer_gen_add(&inactivity_timer);
+    humi_timer_gen_add(&inactivity_timer);
 }

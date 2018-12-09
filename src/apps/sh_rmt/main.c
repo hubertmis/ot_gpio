@@ -9,7 +9,7 @@
 
 #include "sh_rmt_btn.h"
 #include "sh_rmt_led.h"
-#include "sh_rmt_timer.h"
+#include "../../lib/timer/humi_timer.h"
 
 #define SWITCH_DELAY 500
 #define LED_CNT 12
@@ -37,7 +37,7 @@ int main(int argc, char *argv[])
     instance = otInstanceInitSingle();
     assert(instance != NULL);
 
-    sh_rmt_timer_init();
+    humi_timer_init();
     sh_rmt_btn_init();
     sh_rmt_led_init();
 
@@ -55,13 +55,13 @@ int main(int argc, char *argv[])
         }
 #endif
 
-        sh_rmt_timer_process();
+        humi_timer_process();
         sh_rmt_btn_process();
 
         otTaskletsProcess(instance);
         otSysProcessDrivers(instance);
 
-        if (!sh_rmt_timer_is_pending())
+        if (!humi_timer_is_pending())
         {
             __WFE();
         }
