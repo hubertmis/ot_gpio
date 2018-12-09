@@ -9,7 +9,7 @@
 #include <stdint.h>
 
 #include "sh_rmt_led.h"
-#include "sh_rmt_timer.h"
+#include "../../lib/timer/humi_timer.h"
 
 #define NUM_ZONES 7
 
@@ -27,13 +27,13 @@ typedef enum {
 static anim_dir_t     anim_dir;
 static uint8_t        anim_dir_next_step;
 static uint8_t        anim_dir_iter;
-static sh_rmt_timer_t anim_dir_timer;
+static humi_timer_t anim_dir_timer;
 
 #define FADE_OUT_TIME   50
 #define FADE_OUT_BLINKS 8
 static bool           fading_out;
 static uint32_t       fade_out_step;
-static sh_rmt_timer_t fade_out_timer;
+static humi_timer_t fade_out_timer;
 
 const sh_rmt_led_idx_t zone_led_map[NUM_ZONES] = {
         7, 11, 9, 6, 2, 0, 10
@@ -179,10 +179,10 @@ static void anim_dir_step(void *context)
 
     if (anim_dir_iter < max_iters)
     {
-        anim_dir_timer.target_time = sh_rmt_timer_get_target_from_delay(ANIM_DIR_TIME);
+        anim_dir_timer.target_time = humi_timer_get_target_from_delay(ANIM_DIR_TIME);
         anim_dir_timer.callback = anim_dir_step;
         anim_dir_timer.context = NULL;
-        sh_rmt_timer_gen_add(&anim_dir_timer);
+        humi_timer_gen_add(&anim_dir_timer);
     }
 }
 
@@ -245,10 +245,10 @@ static void fade_out_anim(void *context)
 
     fade_out_step++;
 
-    fade_out_timer.target_time = sh_rmt_timer_get_target_from_delay(FADE_OUT_TIME);
+    fade_out_timer.target_time = humi_timer_get_target_from_delay(FADE_OUT_TIME);
     fade_out_timer.callback    = fade_out_anim;
     fade_out_timer.context     = NULL;
-    sh_rmt_timer_gen_add(&fade_out_timer);
+    humi_timer_gen_add(&fade_out_timer);
 }
 
 
@@ -265,10 +265,10 @@ void sh_rmt_anim_fade_out_zones(void)
     fading_out = true;
     fade_out_step = 0;
 
-    fade_out_timer.target_time = sh_rmt_timer_get_target_from_delay(FADE_OUT_TIME);
+    fade_out_timer.target_time = humi_timer_get_target_from_delay(FADE_OUT_TIME);
     fade_out_timer.callback    = fade_out_anim;
     fade_out_timer.context     = NULL;
-    sh_rmt_timer_gen_add(&fade_out_timer);
+    humi_timer_gen_add(&fade_out_timer);
 }
 
 void sh_rmt_anim_dir_none(void) {

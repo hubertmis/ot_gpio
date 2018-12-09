@@ -1,10 +1,9 @@
 #include "sh_rmt_btn.h"
-#include "sh_rmt_timer.h"
 
 #include <assert.h>
 #include <stdbool.h>
 
-#include <nrfx_gpiote.h>
+#include "../../lib/btn/humi_btn.h"
 
 #define PIN(PORT, NO) (PORT * 32 + NO)
 
@@ -20,91 +19,20 @@
 
 #define NUM_BTNS 9
 
-static const nrfx_gpiote_pin_t btn_pins[NUM_BTNS] = {BTN1, BTN2, BTN3, BTN4, BTN5, BTN6, BTN7, BTN8, BTN9};
-
-static bool btn_evts[NUM_BTNS];
-
-static volatile bool ignore_evts;
-
-static void btn_evt_enqueue(sh_rmt_btn_idx_t i)
-{
-    btn_evts[i] = true;
-}
-
-static void btn_evt_dequeue(sh_rmt_btn_idx_t i)
-{
-    btn_evts[i] = false;
-}
-
-static void btn_evt_handler(nrfx_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
-{
-    (void)action;
-
-    if (ignore_evts)
-    {
-        return;
-    }
-
-    if (nrfx_gpiote_in_is_set(pin))
-    {
-        ignore_evts = true;
-        sh_rmt_timer_btn_start();
-        return;
-    }
-
-    for (int i = 0; i < sizeof(btn_pins) / sizeof(btn_pins[0]); i++)
-    {
-        if (btn_pins[i] == pin)
-        {
-            btn_evt_enqueue(i);
-            ignore_evts = true;
-            sh_rmt_timer_btn_start();
-            break;
-        }
-    }
-}
+static const humi_btn_t btn_pins[NUM_BTNS] = {BTN1, BTN2, BTN3, BTN4, BTN5, BTN6, BTN7, BTN8, BTN9};
 
 void sh_rmt_btn_init(void)
 {
-    nrfx_err_t err;
-
-    err = nrfx_gpiote_init();
-    assert(err == NRFX_SUCCESS);
-
-    const nrfx_gpiote_in_config_t btn_config =
-            {
-                .is_watcher = false,
-                .hi_accuracy = false,
-                .pull = NRF_GPIO_PIN_PULLUP,
-                .sense = NRF_GPIOTE_POLARITY_TOGGLE,
-            };
-    
-    for (int i = 0; i < sizeof(btn_pins) / sizeof(btn_pins[0]); i++)
-    {
-        err = nrfx_gpiote_in_init(btn_pins[i], &btn_config, btn_evt_handler);
-        assert(err == NRFX_SUCCESS);
-
-        nrfx_gpiote_in_event_enable(btn_pins[i], true);
-    }
-
-    ignore_evts = false;
+    humi_btn_init(btn_pins, sizeof(btn_pins) / sizeof(btn_pins[0]));
 }
 
 void sh_rmt_btn_process(void)
 {
-    for (int i = 0; i < sizeof(btn_evts) / sizeof(btn_evts[0]); i++)
-    {
-        if (btn_evts[i])
-        {
-            sh_rmt_btn_evt(i);
-
-            btn_evt_dequeue(i);
-        }
-    }
+    humi_btn_process();
 }
 
-void sh_rmt_timer_btn_fired(void)
+void humi_btn_evt(humi_btn_idx_t idx)
 {
-    ignore_evts = false;
+    sh_rmt_btn_evt(idx);
 }
 

@@ -144,12 +144,18 @@ add_executable(
     src/apps/sh_rmt/sh_rmt_anim.h
     src/apps/sh_rmt/sh_rmt_btn.c
     src/apps/sh_rmt/sh_rmt_btn.h
+    src/apps/sh_rmt/sh_rmt_conn.c
+    src/apps/sh_rmt/sh_rmt_conn.h
     src/apps/sh_rmt/sh_rmt_led.c
     src/apps/sh_rmt/sh_rmt_led.h
     src/apps/sh_rmt/sh_rmt_prg.c
     src/apps/sh_rmt/sh_rmt_prg.h
-    src/apps/sh_rmt/sh_rmt_timer.c
-    src/apps/sh_rmt/sh_rmt_timer.h
+    src/lib/btn/humi_btn.c
+    src/lib/btn/humi_btn.h
+    src/lib/led/humi_led.c
+    src/lib/led/humi_led.h
+    src/lib/timer/humi_timer.c
+    src/lib/timer/humi_timer.h
 )
 
 target_link_libraries (sh_rmt ${OT_LIBS} nrfx)
@@ -163,8 +169,22 @@ FinalizeHex(sh_rmt)
 add_executable(
     sh_cnt
     src/apps/sh_cnt/main.c
+    src/apps/sh_cnt/sh_cnt_btn.c
+    src/apps/sh_cnt/sh_cnt_btn.h
+    src/apps/sh_cnt/sh_cnt_display.c
+    src/apps/sh_cnt/sh_cnt_display.h
+    src/apps/sh_cnt/sh_cnt_led.c
+    src/apps/sh_cnt/sh_cnt_led.h
+    src/apps/sh_cnt/sh_cnt_mot.c
+    src/apps/sh_cnt/sh_cnt_mot.h
     src/apps/sh_cnt/sh_cnt_rly.c
     src/apps/sh_cnt/sh_cnt_rly.h
+    src/lib/btn/humi_btn.c
+    src/lib/btn/humi_btn.h
+    src/lib/led/humi_led.c
+    src/lib/led/humi_led.h
+    src/lib/timer/humi_timer.c
+    src/lib/timer/humi_timer.h
 )
 
 target_link_libraries (sh_cnt ${OT_LIBS} nrfx)

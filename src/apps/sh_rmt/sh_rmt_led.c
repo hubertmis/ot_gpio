@@ -3,9 +3,7 @@
 #include <assert.h>
 #include <stdint.h>
 
-#include <nrf_gpio.h>
-
-#include "sh_rmt_timer.h"
+#include "../../lib/led/humi_led.h"
 
 
 #define PIN(PORT, NO) (PORT * 32 + NO)
@@ -23,62 +21,26 @@
 #define LED11 PIN(0, 4)
 #define LED12 PIN(0, 5)
 
-static const uint32_t led_pins[] = {LED1, LED2, LED3, LED4, LED5, LED6, LED7, LED8, LED9, LED10, LED11, LED12};
-static uint32_t led_bitmap;
-
-void sh_rmt_timer_led_fired(void)
-{
-    static uint32_t m_last_led;
-
-    if (led_bitmap)
-    {
-        sh_rmt_timer_led_start();
-    }
-    else
-    {
-        sh_rmt_timer_led_stop();
-    }
-
-    nrf_gpio_pin_clear(led_pins[m_last_led]);
-
-    m_last_led = (m_last_led + 1) % (sizeof(led_pins) / sizeof(led_pins[0]));
-
-    if (led_bitmap & (1UL << m_last_led))
-    {
-        nrf_gpio_pin_set(led_pins[m_last_led]);
-    }
-}
+static const humi_led_t led_pins[] = {LED1, LED2, LED3, LED4, LED5, LED6, LED7, LED8, LED9, LED10, LED11, LED12};
 
 
 void sh_rmt_led_init(void)
 {
-    for (size_t i = 0; i < sizeof(led_pins) / sizeof(led_pins[0]); i++)
-    {
-        uint32_t pin = led_pins[i];
-
-        nrf_gpio_cfg_output(pin);
-        nrf_gpio_pin_clear(pin);
-    }
+    humi_led_init(led_pins, sizeof(led_pins) / sizeof(led_pins[0]));
 }
 
 void sh_rmt_led_on(sh_rmt_led_idx_t idx)
 {
-    led_bitmap |= (1UL << idx);
-
-    sh_rmt_timer_led_start();
+    humi_led_on(idx);
 }
 
 void sh_rmt_led_off(sh_rmt_led_idx_t idx)
 {
-    led_bitmap &= (~(1UL << idx));
-
-    sh_rmt_timer_led_start();
+    humi_led_off(idx);
 }
 
 void sh_rmt_led_toggle(sh_rmt_led_idx_t idx)
 {
-    led_bitmap ^= (1UL << idx);
-
-    sh_rmt_timer_led_start();
+    humi_led_toggle(idx);
 }
 

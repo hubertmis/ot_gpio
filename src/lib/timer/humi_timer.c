@@ -2,7 +2,7 @@
 // Created by bearh on 24.11.18.
 //
 
-#include "sh_rmt_timer.h"
+#include "humi_timer.h"
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -20,7 +20,7 @@
 
 static const nrfx_rtc_t nrfx_rtc_instance = NRFX_RTC_INSTANCE(0);
 
-static sh_rmt_timer_t *head;
+static humi_timer_t *head;
 static volatile bool  gen_timer_pending;
 
 static void gen_fired(void);
@@ -31,13 +31,13 @@ static void rtc_handler(nrfx_rtc_int_type_t int_type)
     {
         case NRFX_RTC_INT_COMPARE(RTC_CH_LED):
         {
-            sh_rmt_timer_led_fired();
+            humi_timer_led_fired();
             break;
         }
 
         case NRFX_RTC_INT_COMPARE(RTC_CH_BTN):
         {
-            sh_rmt_timer_btn_fired();
+            humi_timer_btn_fired();
             break;
         }
 
@@ -53,7 +53,7 @@ static void rtc_handler(nrfx_rtc_int_type_t int_type)
 
 }
 
-void sh_rmt_timer_init(void)
+void humi_timer_init(void)
 {
     nrfx_err_t err;
 
@@ -74,7 +74,7 @@ void sh_rmt_timer_init(void)
     nrfx_rtc_enable(&nrfx_rtc_instance);
 }
 
-void sh_rmt_timer_process(void)
+void humi_timer_process(void)
 {
     if (gen_timer_pending)
     {
@@ -83,12 +83,12 @@ void sh_rmt_timer_process(void)
     }
 }
 
-bool sh_rmt_timer_is_pending(void)
+bool humi_timer_is_pending(void)
 {
     return gen_timer_pending;
 }
 
-void sh_rmt_timer_led_start(void)
+void humi_timer_led_start(void)
 
 {
     uint32_t next_ctr = (nrfx_rtc_counter_get(&nrfx_rtc_instance) + RTC_IMM_TICKS) %
@@ -96,12 +96,12 @@ void sh_rmt_timer_led_start(void)
     nrfx_rtc_cc_set(&nrfx_rtc_instance, RTC_CH_LED, next_ctr, true);
 }
 
-void sh_rmt_timer_led_stop(void)
+void humi_timer_led_stop(void)
 {
     nrfx_rtc_cc_disable(&nrfx_rtc_instance, RTC_CH_LED);
 }
 
-void sh_rmt_timer_btn_start(void)
+void humi_timer_btn_start(void)
 {
     uint32_t next_ctr = (nrfx_rtc_counter_get(&nrfx_rtc_instance) + (BTN_DEBOUNCING_TIME / RTC_FREQ)) %
             nrfx_rtc_max_ticks_get(&nrfx_rtc_instance);
@@ -164,7 +164,7 @@ static void reset_gen_timer(void)
 void gen_fired(void) {
     assert(head != NULL);
 
-    sh_rmt_timer_t *timer = head;
+    humi_timer_t *timer = head;
     head = timer->next;
 
     if (head != NULL)
@@ -179,12 +179,12 @@ void gen_fired(void) {
     timer->callback(timer->context);
 }
 
-uint32_t sh_rmt_timer_get_time(void) {
+uint32_t humi_timer_get_time(void) {
     uint32_t result = nrfx_rtc_counter_get(&nrfx_rtc_instance);
     return result;
 }
 
-uint32_t sh_rmt_timer_get_target(uint32_t t0, uint32_t dt)
+uint32_t humi_timer_get_target(uint32_t t0, uint32_t dt)
 {
     assert(dt <= (UINT32_MAX / RTC_FREQ));
 
@@ -194,15 +194,15 @@ uint32_t sh_rmt_timer_get_target(uint32_t t0, uint32_t dt)
     return (t0 + dt_ticks) % nrfx_rtc_max_ticks_get(&nrfx_rtc_instance);
 }
 
-uint32_t sh_rmt_timer_get_target_from_delay(uint32_t delay)
+uint32_t humi_timer_get_target_from_delay(uint32_t delay)
 {
-    return sh_rmt_timer_get_target(sh_rmt_timer_get_time(), delay);
+    return humi_timer_get_target(humi_timer_get_time(), delay);
 }
 
-void sh_rmt_timer_gen_remove(sh_rmt_timer_t *timer)
+void humi_timer_gen_remove(humi_timer_t *timer)
 {
-    sh_rmt_timer_t *prev;
-    sh_rmt_timer_t *cur;
+    humi_timer_t *prev;
+    humi_timer_t *cur;
 
     if (head == NULL)
     {
@@ -235,12 +235,12 @@ void sh_rmt_timer_gen_remove(sh_rmt_timer_t *timer)
     }
 }
 
-void sh_rmt_timer_gen_add(sh_rmt_timer_t *timer)
+void humi_timer_gen_add(humi_timer_t *timer)
 {
-    sh_rmt_timer_t *prev;
-    sh_rmt_timer_t *cur;
+    humi_timer_t *prev;
+    humi_timer_t *cur;
 
-    sh_rmt_timer_gen_remove(timer);
+    humi_timer_gen_remove(timer);
 
     if (head == NULL)
     {
@@ -269,4 +269,14 @@ void sh_rmt_timer_gen_add(sh_rmt_timer_t *timer)
         prev->next  = timer;
         timer->next = cur;
     }
+}
+
+void __attribute__((weak)) humi_timer_led_fired(void)
+{
+    // Intentionally empty
+}
+
+void __attribute__((weak)) humi_timer_btn_fired(void)
+{
+    // Intentionally empty
 }
