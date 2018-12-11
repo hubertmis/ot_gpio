@@ -15,4 +15,7 @@ void sh_rmt_anim_stop(void);
 void sh_rmt_anim_up(void);
 void sh_rmt_anim_down(void);
 
+void sh_rmt_anim_connecting(void);
+void sh_rmt_anim_connected(void);
+
 #endif //OT_GPIO_SH_RMT_ANIM_H

@@ -59,17 +59,17 @@ static void set_direction(direction_t dir)
             break;
 
         case DIRECTION_STOP:
-            shr_rmt_conn_stop(active_zones);
+            sh_rmt_conn_stop(active_zones);
             sh_rmt_anim_stop();
             break;
 
         case DIRECTION_UP:
-            shr_rmt_conn_up(active_zones);
+            sh_rmt_conn_up(active_zones);
             sh_rmt_anim_up();
             break;
 
         case DIRECTION_DOWN:
-            shr_rmt_conn_down(active_zones);
+            sh_rmt_conn_down(active_zones);
             sh_rmt_anim_down();
             break;
     }
