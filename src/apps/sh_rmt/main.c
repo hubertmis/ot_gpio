@@ -8,6 +8,7 @@
 #include "openthread-system.h"
 
 #include "sh_rmt_btn.h"
+#include "sh_rmt_conn.h"
 #include "sh_rmt_led.h"
 #include "../../lib/timer/humi_timer.h"
 
@@ -20,26 +21,16 @@ static uint32_t time_now(void)
     return otPlatAlarmMilliGetNow();
 }
 
-void otTaskletsSignalPending(otInstance *aInstance)
-{
-    (void)aInstance;
-}
-
 int main(int argc, char *argv[])
 {
     uint32_t last_switch = time_now();
     uint32_t now;
 
-    otInstance *instance;
-
-    otSysInit(argc, argv);
-
-    instance = otInstanceInitSingle();
-    assert(instance != NULL);
-
     humi_timer_init();
     sh_rmt_btn_init();
     sh_rmt_led_init();
+
+    sh_rmt_conn_init();
 
     while (1)
     {
@@ -58,10 +49,9 @@ int main(int argc, char *argv[])
         humi_timer_process();
         sh_rmt_btn_process();
 
-        otTaskletsProcess(instance);
-        otSysProcessDrivers(instance);
+        sh_rmt_conn_process();
 
-        if (!humi_timer_is_pending())
+        if (!humi_timer_is_pending() && !sh_rmt_conn_is_pending())
         {
             __WFE();
         }
@@ -69,15 +59,3 @@ int main(int argc, char *argv[])
 
     return 0;
 }
-
-/*
- * Provide, if required an "otPlatLog()" function
- */
-#if OPENTHREAD_CONFIG_LOG_OUTPUT == OPENTHREAD_CONFIG_LOG_OUTPUT_APP
-void otPlatLog(otLogLevel aLogLevel, otLogRegion aLogRegion, const char *aFormat, ...)
-{
-    OT_UNUSED_VARIABLE(aLogLevel);
-    OT_UNUSED_VARIABLE(aLogRegion);
-    OT_UNUSED_VARIABLE(aFormat);
-}
-#endif

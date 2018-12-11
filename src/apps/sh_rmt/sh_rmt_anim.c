@@ -24,16 +24,23 @@ typedef enum {
     ANIM_DIR_STOP,
 } anim_dir_t;
 
-static anim_dir_t     anim_dir;
-static uint8_t        anim_dir_next_step;
-static uint8_t        anim_dir_iter;
+static anim_dir_t   anim_dir;
+static uint8_t      anim_dir_next_step;
+static uint8_t      anim_dir_iter;
 static humi_timer_t anim_dir_timer;
 
 #define FADE_OUT_TIME   50
 #define FADE_OUT_BLINKS 8
-static bool           fading_out;
-static uint32_t       fade_out_step;
+static bool         fading_out;
+static uint32_t     fade_out_step;
 static humi_timer_t fade_out_timer;
+
+#define CONN_LED      1
+#define CONN_TIME_ON  100
+#define CONN_TIME_OFF 2900
+static bool         connected;
+static uint32_t     conn_step;
+static humi_timer_t conn_timer;
 
 const sh_rmt_led_idx_t zone_led_map[NUM_ZONES] = {
         7, 11, 9, 6, 2, 0, 10
@@ -44,9 +51,6 @@ const sh_rmt_led_idx_t up_leds[] = {
 const sh_rmt_led_idx_t down_leds[] = {
         4, 5
 };
-
-const sh_rmt_led_idx_t up_ind = 10;
-const sh_rmt_led_idx_t down_ind = 1;
 
 static void anim_dir_display_up(void)
 {
@@ -251,6 +255,35 @@ static void fade_out_anim(void *context)
     humi_timer_gen_add(&fade_out_timer);
 }
 
+static void conn_anim(void *context)
+{
+    (void)context;
+
+    uint32_t delay;
+
+    if (connected)
+    {
+        sh_rmt_led_off(CONN_LED);
+        return;
+    }
+
+    if (conn_step % 2)
+    {
+        sh_rmt_led_on(CONN_LED);
+        delay = CONN_TIME_ON;
+    }
+    else
+    {
+        sh_rmt_led_off(CONN_LED);
+        delay = CONN_TIME_OFF;
+    }
+
+    conn_step ^= 1;
+
+    conn_timer.target_time = humi_timer_get_target_from_delay(delay);
+    humi_timer_gen_add(&conn_timer);
+}
+
 
 void sh_rmt_anim_display_zones(uint32_t zone_mask)
 {
@@ -286,3 +319,25 @@ void sh_rmt_anim_up(void) {
 void sh_rmt_anim_down(void) {
     start_anim_dir(ANIM_DIR_DOWN);
 }
+
+void sh_rmt_anim_connecting(void)
+{
+    connected = false;
+    conn_step = 0;
+
+    sh_rmt_led_on(CONN_LED);
+
+    conn_timer.target_time = humi_timer_get_target_from_delay(CONN_TIME_ON);
+    conn_timer.callback    = conn_anim;
+    conn_timer.context     = NULL;
+
+    humi_timer_gen_add(&conn_timer);
+}
+
+void sh_rmt_anim_connected(void)
+{
+    connected = true;
+
+    sh_rmt_led_off(CONN_LED);
+}
+

@@ -14,7 +14,7 @@ add_custom_command(
     DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/openthread
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/third_party/openthread
     COMMAND ./bootstrap
-    COMMAND make -f examples/Makefile-nrf52840 JOINER=1
+    COMMAND make -f examples/Makefile-nrf52840 JOINER=1 COAP=1
 )
 
 add_custom_target(
@@ -152,6 +152,8 @@ add_executable(
     src/apps/sh_rmt/sh_rmt_prg.h
     src/lib/btn/humi_btn.c
     src/lib/btn/humi_btn.h
+    src/lib/conn/humi_conn.c
+    src/lib/conn/humi_conn.h
     src/lib/led/humi_led.c
     src/lib/led/humi_led.h
     src/lib/timer/humi_timer.c
@@ -171,6 +173,8 @@ add_executable(
     src/apps/sh_cnt/main.c
     src/apps/sh_cnt/sh_cnt_btn.c
     src/apps/sh_cnt/sh_cnt_btn.h
+    src/apps/sh_cnt/sh_cnt_conn.c
+    src/apps/sh_cnt/sh_cnt_conn.h
     src/apps/sh_cnt/sh_cnt_display.c
     src/apps/sh_cnt/sh_cnt_display.h
     src/apps/sh_cnt/sh_cnt_led.c
@@ -181,6 +185,8 @@ add_executable(
     src/apps/sh_cnt/sh_cnt_rly.h
     src/lib/btn/humi_btn.c
     src/lib/btn/humi_btn.h
+    src/lib/conn/humi_conn.c
+    src/lib/conn/humi_conn.h
     src/lib/led/humi_led.c
     src/lib/led/humi_led.h
     src/lib/timer/humi_timer.c

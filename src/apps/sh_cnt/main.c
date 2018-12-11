@@ -3,11 +3,10 @@
 #include <stdint.h>
 
 #include <cmsis_gcc.h>
-#include <openthread/tasklet.h>
 #include <openthread/platform/alarm-milli.h>
-#include "openthread-system.h"
 
 #include "sh_cnt_btn.h"
+#include "sh_cnt_conn.h"
 #include "sh_cnt_display.h"
 #include "sh_cnt_mot.h"
 #include "../../lib/timer/humi_timer.h"
@@ -24,14 +23,6 @@ static uint32_t time_now(void)
 }
 
 #pragma clang diagnostic push
-#pragma ide diagnostic ignored "OCUnusedGlobalDeclarationInspection"
-void otTaskletsSignalPending(otInstance *aInstance)
-{
-    (void)aInstance;
-}
-#pragma clang diagnostic pop
-
-#pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wmissing-noreturn"
 int main(int argc, char *argv[])
 {
@@ -40,18 +31,13 @@ int main(int argc, char *argv[])
     uint32_t now;
 #endif
 
-    otInstance *instance;
-
-    otSysInit(argc, argv);
-
-    instance = otInstanceInitSingle();
-    assert(instance != NULL);
-
     humi_timer_init();
 
     sh_cnt_btn_init();
     sh_cnt_display_init();
     sh_cnt_mot_init(5000);
+
+    sh_cnt_conn_init();
 
     while (1)
     {
@@ -70,10 +56,12 @@ int main(int argc, char *argv[])
         }
 #endif
 
-        otTaskletsProcess(instance);
-        otSysProcessDrivers(instance);
+        sh_cnt_conn_process();
 
-        //__WFE();
+        if (!humi_timer_is_pending() && !sh_cnt_conn_is_pending())
+        {
+            __WFE();
+        }
     }
 }
 #pragma clang diagnostic pop
@@ -128,17 +116,3 @@ void sh_cnt_btn_evt(void)
     i++;
 }
 
-/*
- * Provide, if required an "otPlatLog()" function
- */
-#if OPENTHREAD_CONFIG_LOG_OUTPUT == OPENTHREAD_CONFIG_LOG_OUTPUT_APP
-#pragma clang diagnostic push
-#pragma ide diagnostic ignored "OCUnusedGlobalDeclarationInspection"
-void otPlatLog(otLogLevel aLogLevel, otLogRegion aLogRegion, const char *aFormat, ...)
-{
-    OT_UNUSED_VARIABLE(aLogLevel);
-    OT_UNUSED_VARIABLE(aLogRegion);
-    OT_UNUSED_VARIABLE(aFormat);
-}
-#pragma clang diagnostic pop
-#endif
