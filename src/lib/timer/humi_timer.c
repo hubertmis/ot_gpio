@@ -8,6 +8,9 @@
 #include <stddef.h>
 #include <nrfx_rtc.h>
 
+#include "../lite_log/log_data.h"
+#include "../lite_log/lite_log.h"
+
 #define RTC_FREQ 2048UL
 #define BTN_DEBOUNCING_TIME 50000UL
 #define RTC_IMM_TICKS 3UL
@@ -43,7 +46,9 @@ static void rtc_handler(nrfx_rtc_int_type_t int_type)
 
         case NRFX_RTC_INT_COMPARE(RTC_CH_GEN):
         {
+            llog(EV_ENTER, FN_TIME_GEN_HANDLER);
             gen_timer_pending = true;
+            llog(EV_EXIT, FN_TIME_GEN_HANDLER);
             break;
         }
 
@@ -120,6 +125,7 @@ static bool is_earlier_than(uint32_t this, uint32_t that)
 
 static void set_gen_timer(uint32_t target_ticks)
 {
+    llog(EV_ENTER, FN_TIME_GEN_SET);
     uint32_t max_ticks        = nrfx_rtc_max_ticks_get(&nrfx_rtc_instance);
     uint32_t curr_ticks       = nrfx_rtc_counter_get(&nrfx_rtc_instance);
     uint32_t min_target_ticks = (curr_ticks + RTC_IMM_TICKS) % max_ticks;
@@ -145,6 +151,8 @@ static void set_gen_timer(uint32_t target_ticks)
         }
     }
 
+    llog(EV_DATA, immediately);
+
     if (immediately)
     {
         nrfx_rtc_cc_disable(&nrfx_rtc_instance, RTC_CH_GEN);
@@ -154,6 +162,8 @@ static void set_gen_timer(uint32_t target_ticks)
     {
         nrfx_rtc_cc_set(&nrfx_rtc_instance, RTC_CH_GEN, target_ticks, true);
     }
+
+    llog(EV_EXIT, FN_TIME_GEN_SET);
 }
 
 static void reset_gen_timer(void)
@@ -167,6 +177,8 @@ void gen_fired(void) {
     humi_timer_t *timer = head;
     head = timer->next;
 
+    asm volatile("": : :"memory");
+
     if (head != NULL)
     {
         set_gen_timer(head->target_time);
@@ -175,6 +187,8 @@ void gen_fired(void) {
     {
         reset_gen_timer();
     }
+
+    asm volatile("": : :"memory");
 
     timer->callback(timer->context);
 }
@@ -213,6 +227,8 @@ void humi_timer_gen_remove(humi_timer_t *timer)
     {
         head = timer->next;
 
+        asm volatile("": : :"memory");
+
         if (head == NULL)
         {
             reset_gen_timer();
@@ -247,12 +263,16 @@ void humi_timer_gen_add(humi_timer_t *timer)
         timer->next = NULL;
         head        = timer;
 
+        asm volatile("": : :"memory");
+
         set_gen_timer(timer->target_time);
     }
     else if (is_earlier_than(timer->target_time, head->target_time))
     {
         timer->next = head;
         head        = timer;
+
+        asm volatile("": : :"memory");
 
         set_gen_timer(timer->target_time);
     }

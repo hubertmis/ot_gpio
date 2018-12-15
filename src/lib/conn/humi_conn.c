@@ -14,6 +14,8 @@
 #include <openthread/tasklet.h>
 #include "openthread-system.h"
 
+#define TX_POWER 8
+
 #define MULTICAST_PREFIX 0xff
 #define MULTICAST_SCOPE_MASK 0x0f
 #define MESH_LOCAL_SCOPE 3
@@ -28,6 +30,9 @@ void humi_conn_init(bool sed) {
 
     ot_instance = otInstanceInitSingle();
     assert(ot_instance != NULL);
+
+    error = otPlatRadioSetTransmitPower(ot_instance, TX_POWER);
+    assert(error == OT_ERROR_NONE);
 
     // TODO: Get Pan Id and channel via commissioning
     error = otLinkSetPanId(ot_instance, 0x7277);

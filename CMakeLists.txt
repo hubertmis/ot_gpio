@@ -156,6 +156,15 @@ add_executable(
     src/lib/conn/humi_conn.h
     src/lib/led/humi_led.c
     src/lib/led/humi_led.h
+    src/lib/lite_log/lite_log.c
+    src/lib/lite_log/lite_log.h
+    src/lib/lite_log/log_data.h
+    src/lib/mcbor/mcbor_const.h
+    src/lib/mcbor/mcbor_dec.c
+    src/lib/mcbor/mcbor_dec.h
+    src/lib/mcbor/mcbor_enc.c
+    src/lib/mcbor/mcbor_enc.h
+    src/lib/mcbor/mcbor_types.h
     src/lib/timer/humi_timer.c
     src/lib/timer/humi_timer.h
 )
@@ -189,6 +198,15 @@ add_executable(
     src/lib/conn/humi_conn.h
     src/lib/led/humi_led.c
     src/lib/led/humi_led.h
+    src/lib/lite_log/lite_log.c
+    src/lib/lite_log/lite_log.h
+    src/lib/lite_log/log_data.h
+    src/lib/mcbor/mcbor_const.h
+    src/lib/mcbor/mcbor_dec.c
+    src/lib/mcbor/mcbor_dec.h
+    src/lib/mcbor/mcbor_enc.c
+    src/lib/mcbor/mcbor_enc.h
+    src/lib/mcbor/mcbor_types.h
     src/lib/timer/humi_timer.c
     src/lib/timer/humi_timer.h
 )

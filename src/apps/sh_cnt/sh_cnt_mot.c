@@ -8,6 +8,8 @@
 
 #include "sh_cnt_display.h"
 #include "sh_cnt_rly.h"
+#include "../../lib/lite_log/lite_log.h"
+#include "../../lib/lite_log/log_data.h"
 #include "../../lib/timer/humi_timer.h"
 
 #define NUM_MOTS 2
@@ -45,6 +47,27 @@ static struct mot_state {
 static void stop(void *context);
 static void move(void *context);
 
+static void try_display_unblock(void)
+{
+    bool unblock = true;
+
+    for (int i = 0; i < NUM_MOTS; i++)
+    {
+        if ((mot_states[i].req_state != STATE_STOP) ||
+            (mot_states[i].rly_on) ||
+            (mot_states[i].rly_down))
+        {
+            unblock = false;
+            break;
+        }
+    }
+
+    if (unblock)
+    {
+        sh_cnt_display_unblock();
+    }
+}
+
 static void set_timer_to_stop(struct mot_state *mot_state)
 {
     mot_state->timer.target_time = humi_timer_get_target_from_delay(TOT_TIME);
@@ -69,13 +92,21 @@ static void set_req_state(sh_cnt_mot_idx_t idx, req_state_t req_state)
 
 static void stop(void *context)
 {
+    llog(EV_ENTER, FN_CB_STOP);
+    llog(EV_DATA,  (uint8_t)(uint32_t)context);
+
     sh_cnt_mot_idx_t idx = (sh_cnt_mot_idx_t)context;
 
     set_req_state(idx, STATE_STOP);
+
+    llog(EV_EXIT, FN_CB_STOP);
 }
 
 static void move(void *context)
 {
+    llog(EV_ENTER, FN_CB_MOVE);
+    llog(EV_DATA,  (uint8_t)(uint32_t)context);
+
     sh_cnt_mot_idx_t idx = (sh_cnt_mot_idx_t)context;
 
     const struct rlys *mot_rlys  = &rlys[idx];
@@ -96,7 +127,7 @@ static void move(void *context)
                 sh_cnt_rly_off(mot_rlys->dir);
                 mot_state->rly_down = false;
 
-                sh_cnt_display_unblock();
+                try_display_unblock();
             }
 
             break;
@@ -159,6 +190,8 @@ static void move(void *context)
 
             break;
     }
+
+    llog(EV_EXIT, FN_CB_MOVE);
 }
 
 void sh_cnt_mot_init(int tot_mov_time)
@@ -175,16 +208,31 @@ void sh_cnt_mot_init(int tot_mov_time)
 
 void sh_cnt_mot_up(sh_cnt_mot_idx_t idx)
 {
+    llog(EV_ENTER, FN_UP);
+    llog(EV_DATA,  idx);
+
     set_req_state(idx, STATE_UP);
+
+    llog(EV_EXIT, FN_UP);
 }
 
 void sh_cnt_mot_down(sh_cnt_mot_idx_t idx)
 {
+    llog(EV_ENTER, FN_DOWN);
+    llog(EV_DATA,  idx);
+
     set_req_state(idx, STATE_DOWN);
+
+    llog(EV_EXIT, FN_DOWN);
 }
 
 void sh_cnt_mot_stop(sh_cnt_mot_idx_t idx)
 {
+    llog(EV_ENTER, FN_STOP);
+    llog(EV_DATA,  idx);
+
     set_req_state(idx, STATE_STOP);
+
+    llog(EV_EXIT, FN_STOP);
 }
 
