@@ -10,6 +10,8 @@
 #include <stdint.h>
 
 #include "sh_cnt_led.h"
+#include "../../lib/lite_log/log_data.h"
+#include "../../lib/lite_log/lite_log.h"
 #include "../../lib/timer/humi_timer.h"
 
 #define DISCOVERY_PHASE_TIME 500
@@ -34,6 +36,7 @@ static humi_timer_t timer;
 
 static void anim(void *context)
 {
+    llog(EV_ENTER, FN_ANIM);
     uint32_t delay;
     (void)context;
 
@@ -80,6 +83,7 @@ static void anim(void *context)
     anim_step = (anim_step + 1) % 2;
 
     humi_timer_gen_add(&timer);
+    llog(EV_EXIT, FN_ANIM);
 }
 
 static void set_anim_state(enum anim_state_t new_state)

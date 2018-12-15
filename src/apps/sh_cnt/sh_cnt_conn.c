@@ -13,6 +13,18 @@
 #include "sh_cnt_display.h"
 #include "sh_cnt_mot.h"
 #include "../../lib/conn/humi_conn.h"
+#include "../../lib/mcbor/mcbor_dec.h"
+#include "../../lib/mcbor/mcbor_enc.h"
+
+#define SERVICE_TYPE_KEY "type"
+#define SERVICE_TYPE     "shcnt"
+#define SD_PAYLOAD_MAX_SIZE 64
+
+#define SH_PAYLOAD_MAX_SIZE 128
+#define SH_VALUE_KEY  "val"
+#define SH_VALUE_UP   "up"
+#define SH_VALUE_DOWN "down"
+#define SH_VALUE_STOP "stop"
 
 static void sd_handler(void *context, otCoapHeader *header, otMessage *message, const otMessageInfo *message_info);
 static void sh_handler(void *context, otCoapHeader *header, otMessage *message, const otMessageInfo *message_info);
@@ -23,10 +35,17 @@ static otCoapResource sd_resource = {
         .mContext = NULL,
 };
 
-static otCoapResource sh_resource = {
-        .mUriPath = "dr1",
-        .mHandler = sh_handler,
-        .mContext = NULL,
+static otCoapResource sh_resources[] = {
+        {
+                .mUriPath = "dr1",
+                .mHandler = sh_handler,
+                .mContext = (void *)0,
+        },
+        {
+                .mUriPath = "dr2",
+                .mHandler = sh_handler,
+                .mContext = (void *)1,
+        },
 };
 
 static void coap_init(void)
@@ -38,11 +57,37 @@ static void coap_init(void)
 
     //otCoapSetDefaultHandler(humi_conn_get_instance(), coap_def_handler, NULL);
 
-    error = otCoapAddResource(humi_conn_get_instance(), &sh_resource);
-    assert (error == OT_ERROR_NONE);
+    for (int i = 0; i < sizeof(sh_resources) / sizeof(sh_resources[0]); i++)
+    {
+        error = otCoapAddResource(humi_conn_get_instance(), &sh_resources[i]);
+        assert (error == OT_ERROR_NONE);
+    }
 
     error = otCoapAddResource(humi_conn_get_instance(), &sd_resource);
     assert (error == OT_ERROR_NONE);
+}
+
+static size_t create_sd_response_payload(uint8_t *buffer, size_t buffer_size)
+{
+    int num_services = sizeof(sh_resources) / sizeof(sh_resources[0]);
+
+    mcbor_enc_t cbor;
+    mcbor_enc_init(buffer, buffer_size, &cbor);
+
+    if (mcbor_enc_map(&cbor, num_services) != MCBOR_ERR_SUCCESS) return 0;
+
+    for (int i = 0; i < num_services; i++)
+    {
+        // Key (service name)
+        if (mcbor_enc_text(&cbor, sh_resources[i].mUriPath) != MCBOR_ERR_SUCCESS) return 0;
+
+        // Service description
+        if (mcbor_enc_map(&cbor, 1) != MCBOR_ERR_SUCCESS) return 0;
+        if (mcbor_enc_text(&cbor, SERVICE_TYPE_KEY) != MCBOR_ERR_SUCCESS) return 0;
+        if (mcbor_enc_text(&cbor, SERVICE_TYPE) != MCBOR_ERR_SUCCESS) return 0;
+    }
+
+    return mcbor_get_size(&cbor);
 }
 
 static void sd_response_send(otCoapHeader *req_header, const otMessageInfo *message_info)
@@ -50,6 +95,9 @@ static void sd_response_send(otCoapHeader *req_header, const otMessageInfo *mess
     otError      error = OT_ERROR_NONE;
     otCoapHeader header;
     otMessage   *response;
+
+    uint8_t payload[SD_PAYLOAD_MAX_SIZE];
+    size_t  payload_size;
 
     otCoapHeaderInit(&header, OT_COAP_TYPE_NON_CONFIRMABLE, OT_COAP_CODE_CONTENT);
     otCoapHeaderSetToken(&header, otCoapHeaderGetToken(req_header), otCoapHeaderGetTokenLength(req_header));
@@ -62,19 +110,10 @@ static void sd_response_send(otCoapHeader *req_header, const otMessageInfo *mess
         goto exit;
     }
 
-    // TODO: Create CBOR encoder
-    const uint8_t payload[] = {
-            0xa2,
-              0x63, 'd', 'r', '1',
-              0xa1,
-                0x64, 't', 'y', 'p', 'e',
-                0x65, 's', 'h', 'c', 'n', 't',
-              0x63, 'd', 'r', '2',
-              0xa1,
-                0x64, 't', 'y', 'p', 'e',
-                0x65, 's', 'h', 'c', 'n', 't',
-    };
-    error = otMessageAppend(response, payload, sizeof(payload));
+    payload_size = create_sd_response_payload(payload, sizeof(payload));
+    assert(payload_size > 0);
+
+    error = otMessageAppend(response, payload, payload_size);
     if (error != OT_ERROR_NONE)
     {
         goto exit;
@@ -92,6 +131,7 @@ exit:
 static void sd_handler(void *context, otCoapHeader *header, otMessage *message, const otMessageInfo *message_info)
 {
     (void)context;
+    (void)message;
 
     if (otCoapHeaderGetType(header) != OT_COAP_TYPE_NON_CONFIRMABLE)
     {
@@ -112,6 +152,11 @@ static void sd_handler(void *context, otCoapHeader *header, otMessage *message, 
     // TODO: Filter traffic using payload
 
     sd_response_send(header, message_info);
+}
+
+static bool is_cbor_text_equal_to_str(const uint8_t *cbor_text, size_t cbor_text_len, char *str)
+{
+    return mcbor_dec_is_text_equal_to_str(cbor_text, cbor_text_len, str);
 }
 
 static void sh_response_send(otCoapHeader *req_header, const otMessageInfo *message_info)
@@ -139,40 +184,64 @@ exit:
     }
 }
 
-/**
- * Search for given string in given memory.
- *
- * @param mem       Pointer to haystack. Must be zero-terminated.
- * @param mem_size  Size of the haystack.
- * @param str       Pointer to string (needle) searched in the haystack.
- * @return          If given string was found in the haystack.
- */
-static bool is_str_in_mem(const void *mem, size_t mem_size, uint8_t *str)
+static mcbor_err_t process_and_skip_resource(int i, const mcbor_dec_t *mcbor_dec, const void *resource_map, int pairs)
 {
-    const void *first_char;
-    const void *mem_left = mem;
-    size_t      mem_left_size = mem_size;
+    const void *item = resource_map;
+    mcbor_err_t err;
 
-    while (NULL != (first_char = memchr(mem_left, str[0], mem_left_size)))
+    for (int j = 0; j < pairs; j++)
     {
-        if (NULL != strstr(first_char, str))
+        const char *key;
+        size_t      key_len;
+
+        const char *value;
+        size_t      value_len;
+
+        err = mcbor_dec_get_text(mcbor_dec, item, &key, &key_len);
+
+        if ((err == MCBOR_ERR_NOT_FOUND) || !is_cbor_text_equal_to_str(key, key_len, SH_VALUE_KEY))
         {
-            return true;
+            err = mcbor_dec_skip_item(mcbor_dec, &item); // Skip key
+            if (err != MCBOR_ERR_SUCCESS) return err;
+            err = mcbor_dec_skip_item(mcbor_dec, &item); // Skip value
+            if (err != MCBOR_ERR_SUCCESS) return err;
         }
+        else
+        {
+            if (err != MCBOR_ERR_SUCCESS) return err;
 
-        mem_left = (const uint8_t *)first_char + 1;
-        mem_left_size = mem_size - (mem_left - mem);
+            err = mcbor_dec_skip_item(mcbor_dec, &item); // Skip key
+            if (err != MCBOR_ERR_SUCCESS) return err;
+
+            err = mcbor_dec_get_text(mcbor_dec, item, &value, &value_len);
+            if (err != MCBOR_ERR_SUCCESS) return err;
+
+            // Process type value
+            if (is_cbor_text_equal_to_str(value, value_len, SH_VALUE_UP))
+            {
+                sh_cnt_mot_up(i);
+            }
+            else if (is_cbor_text_equal_to_str(value, value_len, SH_VALUE_DOWN))
+            {
+                sh_cnt_mot_down(i);
+            }
+            else if (is_cbor_text_equal_to_str(value, value_len, SH_VALUE_STOP))
+            {
+                sh_cnt_mot_stop(i);
+            }
+
+            err = mcbor_dec_skip_item(mcbor_dec, &item); // Skip value
+            if (err != MCBOR_ERR_SUCCESS) return err;
+        }
     }
-
-    return false;
 }
 
 static void sh_handler(void *context, otCoapHeader *header, otMessage *message, const otMessageInfo *message_info)
 {
-    (void)context;
-#define PAYLOAD_SIZE 128
-    char payload[PAYLOAD_SIZE];
-    uint8_t payload_len;
+    char payload[SH_PAYLOAD_MAX_SIZE];
+    int payload_len;
+
+    int resource = (int)context;
 
     if (otCoapHeaderGetCode(header) != OT_COAP_CODE_PUT)
     {
@@ -185,21 +254,23 @@ static void sh_handler(void *context, otCoapHeader *header, otMessage *message, 
         return;
     }
 
-    payload_len = otMessageRead(message, 0, payload, sizeof(payload)-1);
-    payload[payload_len] = '\0';
+    payload_len = otMessageRead(message, otMessageGetOffset(message), payload, sizeof(payload));
 
-    // TODO: parse CBOR and find resource and value
-    if (is_str_in_mem(payload, payload_len, "up"))
+    mcbor_iter_t   iter;
+    mcbor_dec_t    mcbor_dec;
+    const void    *top_map_item;
+    int            pairs;
+
+    mcbor_dec_init(payload, payload_len, &mcbor_dec);
+    mcbor_dec_iter_init(&mcbor_dec, &iter);
+
+    for (mcbor_err_t err = mcbor_dec_iter_map(&mcbor_dec, &iter, &top_map_item, &pairs);
+         err == MCBOR_ERR_SUCCESS;
+         err = mcbor_dec_iter_map(&mcbor_dec, &iter, &top_map_item, &pairs))
     {
-        sh_cnt_mot_up(0);
-    }
-    else if (is_str_in_mem(payload, payload_len, "down"))
-    {
-        sh_cnt_mot_down(0);
-    }
-    else if (is_str_in_mem(payload, payload_len, "stop"))
-    {
-        sh_cnt_mot_stop(0);
+        mcbor_err_t mcbor_err;
+        mcbor_err = process_and_skip_resource(resource, &mcbor_dec, top_map_item, pairs);
+        if (mcbor_err != MCBOR_ERR_SUCCESS) break;
     }
 
     sh_response_send(header, message_info);
