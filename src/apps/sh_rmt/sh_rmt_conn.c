@@ -33,12 +33,12 @@
 #define SER_TYPE_VAL "shcnt"
 
 static const char * const zone_names[NUM_ZONES] = {
-        "dr1",
         "dr2",
         "dr3",
         "k2",
         "br",
         "lr",
+        "dr1",
         "k1",
 };
 
