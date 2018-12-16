@@ -15,10 +15,13 @@
 #include "../../lib/conn/humi_conn.h"
 #include "../../lib/mcbor/mcbor_dec.h"
 #include "../../lib/mcbor/mcbor_enc.h"
+#include "../../lib/timer/humi_timer.h"
 
 #define SERVICE_TYPE_KEY "type"
 #define SERVICE_TYPE     "shcnt"
 #define SD_PAYLOAD_MAX_SIZE 64
+#define SD_MIN_DELAY        500
+#define SD_MAX_DELAY        1500
 
 #define SH_PAYLOAD_MAX_SIZE 128
 #define SH_VALUE_KEY  "val"
@@ -47,6 +50,12 @@ static otCoapResource sh_resources[] = {
                 .mContext = (void *)1,
         },
 };
+
+static struct {
+    otCoapHeader  req_header;
+    otMessageInfo message_info;
+} sd_rsp_data;
+static humi_timer_t sd_timer;
 
 static void coap_init(void)
 {
@@ -90,11 +99,14 @@ static size_t create_sd_response_payload(uint8_t *buffer, size_t buffer_size)
     return mcbor_get_size(&cbor);
 }
 
-static void sd_response_send(otCoapHeader *req_header, const otMessageInfo *message_info)
+static void sd_response_send(void *context)
 {
-    otError      error = OT_ERROR_NONE;
-    otCoapHeader header;
-    otMessage   *response;
+    (void)context;
+    otError              error        = OT_ERROR_NONE;
+    otCoapHeader        *req_header   = &sd_rsp_data.req_header;
+    const otMessageInfo *message_info = &sd_rsp_data.message_info;
+    otCoapHeader         header;
+    otMessage           *response;
 
     uint8_t payload[SD_PAYLOAD_MAX_SIZE];
     size_t  payload_size;
@@ -151,7 +163,13 @@ static void sd_handler(void *context, otCoapHeader *header, otMessage *message, 
 
     // TODO: Filter traffic using payload
 
-    sd_response_send(header, message_info);
+    int delay = SD_MIN_DELAY + (rand() % (SD_MAX_DELAY - SD_MIN_DELAY));
+    sd_rsp_data.req_header   = *header;
+    sd_rsp_data.message_info = *message_info;
+    sd_timer.target_time     = humi_timer_get_target_from_delay(delay);
+    sd_timer.callback        = sd_response_send;
+    sd_timer.context         = NULL;
+    humi_timer_gen_add(&sd_timer);
 }
 
 static bool is_cbor_text_equal_to_str(const uint8_t *cbor_text, size_t cbor_text_len, char *str)
