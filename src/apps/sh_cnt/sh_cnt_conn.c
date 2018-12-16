@@ -39,6 +39,7 @@ static otCoapResource sd_resource = {
 };
 
 static otCoapResource sh_resources[] = {
+#if SH_CNT_LOC_dr
         {
                 .mUriPath = "dr1",
                 .mHandler = sh_handler,
@@ -49,6 +50,30 @@ static otCoapResource sh_resources[] = {
                 .mHandler = sh_handler,
                 .mContext = (void *)1,
         },
+#elif SH_CNT_LOC_k
+        {
+                .mUriPath = "dr3",
+                .mHandler = sh_handler,
+                .mContext = (void *)0,
+        },
+        {
+                .mUriPath = "k2",
+                .mHandler = sh_handler,
+                .mContext = (void *)1,
+        },
+#elif SH_CNT_LOC_lr
+        {
+                .mUriPath = "lr",
+                .mHandler = sh_handler,
+                .mContext = (void *)0,
+        },
+#elif SH_CNT_LOC_br
+{
+                .mUriPath = "br",
+                .mHandler = sh_handler,
+                .mContext = (void *)0,
+        },
+#endif // SH_CNT_LOC_
 };
 
 static struct {

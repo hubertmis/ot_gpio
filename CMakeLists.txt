@@ -177,43 +177,54 @@ FinalizeHex(sh_rmt)
 # Prepare the Shades Controller binary
 ######################################
 
-add_executable(
-    sh_cnt
-    src/apps/sh_cnt/main.c
-    src/apps/sh_cnt/sh_cnt_btn.c
-    src/apps/sh_cnt/sh_cnt_btn.h
-    src/apps/sh_cnt/sh_cnt_conn.c
-    src/apps/sh_cnt/sh_cnt_conn.h
-    src/apps/sh_cnt/sh_cnt_display.c
-    src/apps/sh_cnt/sh_cnt_display.h
-    src/apps/sh_cnt/sh_cnt_led.c
-    src/apps/sh_cnt/sh_cnt_led.h
-    src/apps/sh_cnt/sh_cnt_mot.c
-    src/apps/sh_cnt/sh_cnt_mot.h
-    src/apps/sh_cnt/sh_cnt_rly.c
-    src/apps/sh_cnt/sh_cnt_rly.h
-    src/lib/btn/humi_btn.c
-    src/lib/btn/humi_btn.h
-    src/lib/conn/humi_conn.c
-    src/lib/conn/humi_conn.h
-    src/lib/led/humi_led.c
-    src/lib/led/humi_led.h
-    src/lib/lite_log/lite_log.c
-    src/lib/lite_log/lite_log.h
-    src/lib/lite_log/log_data.h
-    src/lib/mcbor/mcbor_const.h
-    src/lib/mcbor/mcbor_dec.c
-    src/lib/mcbor/mcbor_dec.h
-    src/lib/mcbor/mcbor_enc.c
-    src/lib/mcbor/mcbor_enc.h
-    src/lib/mcbor/mcbor_types.h
-    src/lib/timer/humi_timer.c
-    src/lib/timer/humi_timer.h
+set(SH_CNT_SRCS
+        src/apps/sh_cnt/main.c
+        src/apps/sh_cnt/sh_cnt_btn.c
+        src/apps/sh_cnt/sh_cnt_btn.h
+        src/apps/sh_cnt/sh_cnt_conn.c
+        src/apps/sh_cnt/sh_cnt_conn.h
+        src/apps/sh_cnt/sh_cnt_display.c
+        src/apps/sh_cnt/sh_cnt_display.h
+        src/apps/sh_cnt/sh_cnt_led.c
+        src/apps/sh_cnt/sh_cnt_led.h
+        src/apps/sh_cnt/sh_cnt_mot.c
+        src/apps/sh_cnt/sh_cnt_mot.h
+        src/apps/sh_cnt/sh_cnt_rly.c
+        src/apps/sh_cnt/sh_cnt_rly.h
+        src/lib/btn/humi_btn.c
+        src/lib/btn/humi_btn.h
+        src/lib/conn/humi_conn.c
+        src/lib/conn/humi_conn.h
+        src/lib/led/humi_led.c
+        src/lib/led/humi_led.h
+        src/lib/lite_log/lite_log.c
+        src/lib/lite_log/lite_log.h
+        src/lib/lite_log/log_data.h
+        src/lib/mcbor/mcbor_const.h
+        src/lib/mcbor/mcbor_dec.c
+        src/lib/mcbor/mcbor_dec.h
+        src/lib/mcbor/mcbor_enc.c
+        src/lib/mcbor/mcbor_enc.h
+        src/lib/mcbor/mcbor_types.h
+        src/lib/timer/humi_timer.c
+        src/lib/timer/humi_timer.h
 )
 
-target_link_libraries (sh_cnt ${OT_LIBS} nrfx)
+foreach(SH_CNT_VAR dr k lr br)
+    set(BIN_NAME sh_cnt_${SH_CNT_VAR})
+    add_executable(
+            ${BIN_NAME}
+            ${SH_CNT_SRCS}
+    )
 
-FinalizeHex(sh_cnt)
+    target_compile_definitions(${BIN_NAME}
+            PUBLIC "SH_CNT_LOC_${SH_CNT_VAR}=1"
+            )
+
+    target_link_libraries (${BIN_NAME} ${OT_LIBS} nrfx)
+
+    FinalizeHex(${BIN_NAME})
+endforeach(SH_CNT_VAR)
 
 ############
 # Some tests
