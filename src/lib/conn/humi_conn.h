@@ -18,4 +18,7 @@ void humi_conn_start(void);
 otInstance *humi_conn_get_instance(void);
 bool humi_conn_is_addr_local(const otIp6Address *addr);
 
+void humi_conn_fast_poll_period(void);
+void humi_conn_normal_poll_period(void);
+
 #endif //OT_GPIO_HUMI_CONN_H

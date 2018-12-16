@@ -20,8 +20,12 @@
 #define MULTICAST_SCOPE_MASK 0x0f
 #define MESH_LOCAL_SCOPE 3
 
+#define PP_DEFAULT 60000
+#define PP_FAST    500
+
 
 static otInstance *ot_instance;
+static int fast_pp_req;
 
 void humi_conn_init(bool sed) {
     otError error;
@@ -48,6 +52,8 @@ void humi_conn_init(bool sed) {
         link_mode_config.mSecureDataRequests = true;
         link_mode_config.mDeviceType         = false;
         link_mode_config.mNetworkData        = false;
+
+        otLinkSetPollPeriod(humi_conn_get_instance(), PP_DEFAULT);
     } else {
         link_mode_config.mRxOnWhenIdle       = true;
         link_mode_config.mSecureDataRequests = true;
@@ -107,6 +113,25 @@ bool humi_conn_is_addr_local(const otIp6Address *addr)
     return false;
 }
 
+void humi_conn_fast_poll_period(void)
+{
+    if (fast_pp_req++ == 0)
+    {
+        otLinkSetPollPeriod(humi_conn_get_instance(), PP_FAST);
+    }
+
+    assert(fast_pp_req >= 0);
+}
+
+void humi_conn_normal_poll_period(void)
+{
+    if (--fast_pp_req == 0)
+    {
+        otLinkSetPollPeriod(humi_conn_get_instance(), PP_DEFAULT);
+    }
+
+    assert(fast_pp_req >= 0);
+}
 
 #pragma clang diagnostic push
 #pragma ide diagnostic ignored "OCUnusedGlobalDeclarationInspection"

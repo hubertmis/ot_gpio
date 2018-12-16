@@ -53,35 +53,34 @@ typedef enum
 
 // Polling period
 
-#define PP_DEFAULT 60000
-#define PP_FAST    500
-
 static void pp_default(void)
 {
-    // TODO decrement a counter
-    otLinkSetPollPeriod(humi_conn_get_instance(), PP_DEFAULT);
+    humi_conn_normal_poll_period();
 }
 
 static void pp_fast(void)
 {
-    // TODO increment a counter
-    otLinkSetPollPeriod(humi_conn_get_instance(), PP_FAST);
+    humi_conn_fast_poll_period();
 }
 
 // Service discovery
 
-#define SD_RERUN_DELAY 120000
+#define SD_RERUN_DELAY 600000
+#define SD_MIN_SEARCH_DELAY 5000
+#define SD_MAX_SEARCH_DELAY 80000
 
+static uint32_t     sd_last_delay;
 static humi_timer_t sd_timer;
 
 static void sd_start_timer(void);
+static void sd_reset_timer(void);
 
 static mcbor_err_t process_and_skip_resource(const mcbor_dec_t *mcbor_dec, const void **resource_key, const otIp6Address *peer_addr)
 {
     const void *item = *resource_key;
     mcbor_err_t err;
-    mcbor_err_t result;
-    bool        skip = false;
+    mcbor_err_t result = MCBOR_ERR_SUCCESS;
+    bool        skip;
 
     const char *res_name;
     size_t      res_name_len;
@@ -289,23 +288,71 @@ static void sd_rerun(void *context)
 {
     (void)context;
 
-    // TODO: transmit a multicast SD message
+    sd_request();
     sd_start_timer();
 }
 
 static void sd_start_timer(void)
 {
-    sd_timer.target_time = humi_timer_get_target_from_delay(SD_RERUN_DELAY);
+    bool     all_services_known = true;
+    uint32_t delay;
+
+    for (int i = 0; i < NUM_ZONES; i++)
+    {
+        if (otIp6IsAddressUnspecified(&zone_addresses[i]))
+        {
+            all_services_known = false;
+            break;
+        }
+    }
+
+    if (all_services_known)
+    {
+        delay = SD_RERUN_DELAY;
+    }
+    else
+    {
+        delay = sd_last_delay * 2;
+
+        if (delay > SD_MAX_SEARCH_DELAY)
+        {
+            delay = SD_MAX_SEARCH_DELAY;
+        }
+    }
+
+    sd_last_delay = delay;
+
+    sd_timer.target_time = humi_timer_get_target_from_delay(delay);
     sd_timer.callback    = sd_rerun;
     sd_timer.context     = NULL;
 
     humi_timer_gen_add(&sd_timer);
 }
 
-static void sd_init(void)
+static void sd_reset_timer(void)
 {
     sd_request();
+
+    sd_last_delay = SD_MIN_SEARCH_DELAY / 2;
     sd_start_timer();
+}
+
+static void sd_remove_zone_addr(const otIp6Address *zone_addr)
+{
+    for (int i = 0; i < NUM_ZONES; i++)
+    {
+        if (otIp6IsAddressEqual(&zone_addresses[i], zone_addr))
+        {
+            memset(&zone_addresses[i], 0, sizeof(zone_addresses[i]));
+        }
+    }
+
+    sd_reset_timer();
+}
+
+static void sd_init(void)
+{
+    sd_reset_timer();
 }
 
 static void ot_state_changed(otChangedFlags flags, void *context)
@@ -343,8 +390,11 @@ static void zone_response_handler(void                *context,
     (void)context;
     (void)header;
     (void)message;
-    (void)message_info;
-    (void)result;
+
+    if (result != OT_ERROR_NONE)
+    {
+        sd_remove_zone_addr(&message_info->mPeerAddr);
+    }
 
     pp_default();
 }
@@ -385,12 +435,12 @@ static size_t create_req_zone_payload(req_t req, uint8_t *buffer, size_t buffer_
 
 static void req_zone(req_t req, int zone)
 {
-    const uint8_t *zone_name = zone_names[zone];
-    otIp6Address  *zone_addr = &zone_addresses[zone];
+    const char   *zone_name = zone_names[zone];
+    otIp6Address *zone_addr = &zone_addresses[zone];
 
     otError       error = OT_ERROR_NONE;
     otCoapHeader  header;
-    otMessage   * request;
+    otMessage    *request = NULL;
     otMessageInfo message_info;
 
     uint8_t payload[SH_PAYLOAD_MAX_SIZE];
@@ -398,6 +448,7 @@ static void req_zone(req_t req, int zone)
 
     if (otIp6IsAddressUnspecified(zone_addr))
     {
+        sd_reset_timer();
         goto exit;
     }
 
@@ -415,8 +466,9 @@ static void req_zone(req_t req, int zone)
 
     payload_size = create_req_zone_payload(req, payload, sizeof(payload));
     assert(payload_size > 0);
+    assert(payload_size <= UINT16_MAX);
 
-    error = otMessageAppend(request, payload, payload_size);
+    error = otMessageAppend(request, payload, (uint16_t)payload_size);
     if (error != OT_ERROR_NONE)
     {
         goto exit;
