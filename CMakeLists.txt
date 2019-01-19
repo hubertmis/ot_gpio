@@ -102,6 +102,13 @@ set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -T ${LINKER_SCRIPT}")
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -Os")
 
+execute_process(
+  COMMAND git log -1 --format=%h
+  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+  OUTPUT_VARIABLE GIT_COMMIT_HASH
+  OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+
 macro(CreateHex target)
     ADD_CUSTOM_COMMAND(
         TARGET ${target}
@@ -169,6 +176,14 @@ add_executable(
     src/lib/timer/humi_timer.h
 )
 
+target_compile_definitions(sh_rmt
+        PUBLIC "VENDOR_MODEL=\"sh_rmt\""
+        PUBLIC "SW_VERSION=\"${GIT_COMMIT_HASH}\""
+        )
+
+#target_compile_definitions(sh_rmt PUBLIC "PSKD=\"\"")
+#target_compile_definitions(sh_rmt PUBLIC "COAP_PSK=\"\"")
+
 target_link_libraries (sh_rmt ${OT_LIBS} nrfx)
 
 FinalizeHex(sh_rmt)
@@ -219,7 +234,11 @@ foreach(SH_CNT_VAR dr k lr br)
 
     target_compile_definitions(${BIN_NAME}
             PUBLIC "SH_CNT_LOC_${SH_CNT_VAR}=1"
+            PUBLIC "VENDOR_MODEL=\"sh_cnt\""
+            PUBLIC "SW_VERSION=\"${GIT_COMMIT_HASH}\""
             )
+
+#    target_compile_definitions(${BIN_NAME} PUBLIC "PSKD=\"\"")
 
     target_link_libraries (${BIN_NAME} ${OT_LIBS} nrfx)
 

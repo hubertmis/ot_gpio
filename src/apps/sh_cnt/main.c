@@ -12,10 +12,89 @@
 #include "../../lib/timer/humi_timer.h"
 
 #include "sh_cnt_rly.h"
+#include "sh_cnt_led.h"
 
 #define SWITCH_DELAY 500
 #define RLY_CNT 4
 static int m_next_rly;
+
+#include <nrf_gpio.h>
+static void __INLINE nrf_delay_us(uint32_t volatile number_of_us) __attribute__((always_inline));
+static void __INLINE nrf_delay_us(uint32_t volatile number_of_us)
+{
+    register uint32_t delay __ASM ("r0") = number_of_us;
+    __ASM volatile (
+    "1:\n"
+    " SUBS %0, %0, #1\n"
+    " NOP\n"
+    " NOP\n"
+    " NOP\n"
+    " NOP\n"
+    " NOP\n"
+    " NOP\n"
+    " NOP\n"
+    " NOP\n"
+    " NOP\n"
+    " NOP\n"
+    " NOP\n"
+    " NOP\n"
+    " NOP\n"
+    " NOP\n"
+    " NOP\n"
+    " NOP\n"
+    " NOP\n"
+    " NOP\n"
+    " NOP\n"
+    " NOP\n"
+    " NOP\n"
+    " NOP\n"
+    " NOP\n"
+    " NOP\n"
+    " NOP\n"
+    " NOP\n"
+    " NOP\n"
+    " NOP\n"
+    " NOP\n"
+    " NOP\n"
+    " NOP\n"
+    " NOP\n"
+    " NOP\n"
+    " NOP\n"
+    " NOP\n"
+    " NOP\n"
+    " NOP\n"
+    " NOP\n"
+    " NOP\n"
+    " NOP\n"
+    " NOP\n"
+    " NOP\n"
+    " NOP\n"
+    " NOP\n"
+    " NOP\n"
+    " NOP\n"
+    " NOP\n"
+    " NOP\n"
+    " NOP\n"
+    " NOP\n"
+    " NOP\n"
+    " NOP\n"
+    " NOP\n"
+    " NOP\n"
+    " NOP\n"
+    " NOP\n"
+    " NOP\n"
+    " NOP\n"
+    " BNE 1b\n"
+    : "+r" (delay));
+}
+
+static void delay_ms(volatile uint32_t ms)
+{
+    while (--ms != 0)
+    {
+        nrf_delay_us(999);
+    }
+}
 
 static uint32_t time_now(void)
 {
@@ -36,6 +115,19 @@ int main(int argc, char *argv[])
     sh_cnt_btn_init();
     sh_cnt_display_init();
     sh_cnt_mot_init(5000);
+
+    nrf_gpio_pin_set(22);
+    delay_ms(100);
+    nrf_gpio_pin_clear(22);
+    delay_ms(50);
+    nrf_gpio_pin_set(22);
+    delay_ms(50);
+    nrf_gpio_pin_clear(22);
+    delay_ms(50);
+    nrf_gpio_pin_set(22);
+    delay_ms(25);
+    nrf_gpio_pin_clear(22);
+
 
     sh_cnt_conn_init();
 

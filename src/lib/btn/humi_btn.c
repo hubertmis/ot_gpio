@@ -98,6 +98,11 @@ void humi_btn_process(void)
     }
 }
 
+bool humi_btn_is_pressed(humi_btn_idx_t idx)
+{
+    
+}
+
 void humi_timer_btn_fired(void)
 {
     ignore_evts = false;

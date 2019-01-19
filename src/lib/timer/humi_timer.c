@@ -4,6 +4,7 @@
 
 #include "humi_timer.h"
 
+#include <assert.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <nrfx_rtc.h>
@@ -169,6 +170,7 @@ static void set_gen_timer(uint32_t target_ticks)
 static void reset_gen_timer(void)
 {
     nrfx_rtc_cc_disable(&nrfx_rtc_instance, RTC_CH_GEN);
+    gen_timer_pending = false;
 }
 
 void gen_fired(void) {
