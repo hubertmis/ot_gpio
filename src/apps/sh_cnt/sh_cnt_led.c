@@ -10,7 +10,7 @@ static const humi_led_t led_pin = 22;
 
 void sh_cnt_led_init(void)
 {
-    humi_led_init(&led_pin, 10); // State more leds to dim the light (PWM)
+    humi_led_init(&led_pin, 1);
 }
 
 void sh_cnt_led_on(void)

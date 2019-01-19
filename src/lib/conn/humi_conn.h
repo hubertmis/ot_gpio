@@ -13,7 +13,11 @@ void humi_conn_init(bool sed);
 void humi_conn_process(void);
 bool humi_conn_is_pending(void);
 
+bool humi_conn_is_commissioned(void);
 void humi_conn_start(void);
+void humi_conn_stop(void);
+void humi_conn_join(void);
+void humi_conn_decommission(void);
 
 otInstance *humi_conn_get_instance(void);
 bool humi_conn_is_addr_local(const otIp6Address *addr);

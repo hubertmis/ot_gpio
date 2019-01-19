@@ -64,7 +64,7 @@ static void try_display_unblock(void)
 
     if (unblock)
     {
-        sh_cnt_display_unblock();
+    //    sh_cnt_display_unblock();
     }
 }
 
@@ -84,7 +84,7 @@ static void set_timer_to_move(struct mot_state *mot_state)
 
 static void set_req_state(sh_cnt_mot_idx_t idx, req_state_t req_state)
 {
-    sh_cnt_display_block();
+//    sh_cnt_display_block();
 
     mot_states[idx].req_state = req_state;
     move((void*)idx);

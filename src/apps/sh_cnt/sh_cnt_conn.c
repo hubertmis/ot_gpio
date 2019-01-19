@@ -8,6 +8,7 @@
 #include <string.h>
 
 #include <openthread/coap.h>
+#include <openthread/joiner.h>
 #include <openthread/thread.h>
 
 #include "sh_cnt_display.h"
@@ -68,7 +69,7 @@ static otCoapResource sh_resources[] = {
                 .mContext = (void *)0,
         },
 #elif SH_CNT_LOC_br
-{
+        {
                 .mUriPath = "br",
                 .mHandler = sh_handler,
                 .mContext = (void *)0,
@@ -88,8 +89,6 @@ static void coap_init(void)
 
     error = otCoapStart(humi_conn_get_instance(), OT_DEFAULT_COAP_PORT);
     assert(error == OT_ERROR_NONE);
-
-    //otCoapSetDefaultHandler(humi_conn_get_instance(), coap_def_handler, NULL);
 
     for (int i = 0; i < sizeof(sh_resources) / sizeof(sh_resources[0]); i++)
     {
@@ -338,6 +337,28 @@ static void ot_state_changed(otChangedFlags flags, void *context)
             case OT_DEVICE_ROLE_ROUTER:
             case OT_DEVICE_ROLE_LEADER:
                 sh_cnt_display_connected();
+                break;
+        }
+    }
+
+    if (flags & OT_CHANGED_JOINER_STATE)
+    {
+        otJoinerState j_st = otJoinerGetState(humi_conn_get_instance());
+
+        switch (j_st)
+        {
+            case OT_JOINER_STATE_DISCOVER:
+                sh_cnt_display_discovery();
+                break;
+
+            case OT_JOINER_STATE_CONNECT:
+            case OT_JOINER_STATE_CONNECTED:
+            case OT_JOINER_STATE_ENTRUST:
+                sh_cnt_display_commissioning();
+                break;
+
+            case OT_JOINER_STATE_IDLE:
+            case OT_JOINER_STATE_JOINED:
                 break;
         }
     }
