@@ -1,4 +1,6 @@
-cmake_minimum_required (VERSION 2.6)
+cmake_minimum_required (VERSION 3.2)
+
+cmake_policy(SET CMP0012 NEW)
 
 ########################################
 # Compile OpenThread as an libraries set
@@ -14,7 +16,7 @@ add_custom_command(
     DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/openthread
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/third_party/openthread
     COMMAND ./bootstrap
-    COMMAND make -f examples/Makefile-nrf52840 JOINER=1 COAP=1
+    COMMAND make -f examples/Makefile-nrf52840 JOINER=1 COAP=1 COAPS=1
 )
 
 add_custom_target(
@@ -181,8 +183,13 @@ target_compile_definitions(sh_rmt
         PUBLIC "SW_VERSION=\"${GIT_COMMIT_HASH}\""
         )
 
-#target_compile_definitions(sh_rmt PUBLIC "PSKD=\"\"")
-#target_compile_definitions(sh_rmt PUBLIC "COAP_PSK=\"\"")
+if (${PSKD})
+    target_compile_definitions(sh_rmt PUBLIC "PSKD=\"${PSKD}\"")
+endif(${PSKD})
+
+if (${COAP_PSK})
+    target_compile_definitions(sh_rmt PUBLIC "COAP_PSK=\"${COAP_PSK}\"")
+endif(${COAP_PSK})
 
 target_link_libraries (sh_rmt ${OT_LIBS} nrfx)
 
@@ -196,7 +203,7 @@ set(SH_CNT_SRCS
         src/apps/sh_cnt/main.c
         src/apps/sh_cnt/sh_cnt_btn.c
         src/apps/sh_cnt/sh_cnt_btn.h
-        src/apps/sh_cnt/sh_cnt_conn.c
+        src/apps/sh_cnt/.c
         src/apps/sh_cnt/sh_cnt_conn.h
         src/apps/sh_cnt/sh_cnt_display.c
         src/apps/sh_cnt/sh_cnt_display.h
@@ -238,7 +245,13 @@ foreach(SH_CNT_VAR dr k lr br)
             PUBLIC "SW_VERSION=\"${GIT_COMMIT_HASH}\""
             )
 
-#    target_compile_definitions(${BIN_NAME} PUBLIC "PSKD=\"\"")
+    if (${PSKD})
+        target_compile_definitions(${BIN_NAME} PUBLIC "PSKD=\"${PSKD}\"")
+    endif(${PSKD})
+
+    if (${COAP_PSK})
+        target_compile_definitions(${BIN_NAME} PUBLIC "COAP_PSK=\"${COAP_PSK}\"")
+    endif(${COAP_PSK})
 
     target_link_libraries (${BIN_NAME} ${OT_LIBS} nrfx)
 

@@ -8,6 +8,9 @@
 #include <string.h>
 
 #include <openthread/coap.h>
+#ifdef COAP_PSK
+#include <openthread/coap_secure.h>
+#endif // COAP_PSK
 #include <openthread/joiner.h>
 #include <openthread/thread.h>
 
@@ -30,8 +33,8 @@
 #define SH_VALUE_DOWN "down"
 #define SH_VALUE_STOP "stop"
 
-static void sd_handler(void *context, otCoapHeader *header, otMessage *message, const otMessageInfo *message_info);
-static void sh_handler(void *context, otCoapHeader *header, otMessage *message, const otMessageInfo *message_info);
+static void sd_handler(void *context, otMessage *message, const otMessageInfo *message_info);
+static void sh_handler(void *context, otMessage *message, const otMessageInfo *message_info);
 
 static otCoapResource sd_resource = {
         .mUriPath = "sd",
@@ -77,11 +80,25 @@ static otCoapResource sh_resources[] = {
 #endif // SH_CNT_LOC_
 };
 
+#ifdef COAP_PSK
+static const char coap_psk[] = COAP_PSK;
+static const char coap_cli_id[] = "def";
+#endif // COAP_PSK
+
 static struct {
-    otCoapHeader  req_header;
     otMessageInfo message_info;
+    uint8_t       token[OT_COAP_MAX_TOKEN_LENGTH];
+    uint8_t       token_length;
 } sd_rsp_data;
 static humi_timer_t sd_timer;
+
+#ifdef COAP_PSK
+void coaps_client_connected(bool connected, void *context)
+{
+    (void)connected;
+    (void)context;
+}
+#endif // COAP_PSK
 
 static void coap_init(void)
 {
@@ -98,6 +115,27 @@ static void coap_init(void)
 
     error = otCoapAddResource(humi_conn_get_instance(), &sd_resource);
     assert (error == OT_ERROR_NONE);
+
+#ifdef COAP_PSK
+    error = otCoapSecureSetPsk(humi_conn_get_instance(), coap_psk, strlen(coap_psk), coap_cli_id, strlen(coap_cli_id));
+    assert(error == OT_ERROR_NONE);
+
+    otCoapSecureSetSslAuthMode(humi_conn_get_instance(), true);
+
+    error = otCoapSecureStart(humi_conn_get_instance(), OT_DEFAULT_COAP_SECURE_PORT, NULL);
+    assert(error == OT_ERROR_NONE);
+
+#if 0
+    otCoapSecureSetClientConnectedCallback(humi_conn_get_instance(), coaps_client_connected, NULL);
+#endif
+
+    for (int i = 0; i < sizeof(sh_resources) / sizeof(sh_resources[0]); i++)
+    {
+        error = otCoapSecureAddResource(humi_conn_get_instance(), &sh_resources[i]);
+        assert (error == OT_ERROR_NONE);
+    }
+
+#endif // COAP_PSK
 }
 
 static size_t create_sd_response_payload(uint8_t *buffer, size_t buffer_size)
@@ -127,24 +165,22 @@ static void sd_response_send(void *context)
 {
     (void)context;
     otError              error        = OT_ERROR_NONE;
-    otCoapHeader        *req_header   = &sd_rsp_data.req_header;
     const otMessageInfo *message_info = &sd_rsp_data.message_info;
-    otCoapHeader         header;
     otMessage           *response;
 
     uint8_t payload[SD_PAYLOAD_MAX_SIZE];
     size_t  payload_size;
 
-    otCoapHeaderInit(&header, OT_COAP_TYPE_NON_CONFIRMABLE, OT_COAP_CODE_CONTENT);
-    otCoapHeaderSetToken(&header, otCoapHeaderGetToken(req_header), otCoapHeaderGetTokenLength(req_header));
-    otCoapHeaderAppendContentFormatOption(&header, OT_COAP_OPTION_CONTENT_FORMAT_CBOR);
-    (void)otCoapHeaderSetPayloadMarker(&header);
-
-    response = otCoapNewMessage(humi_conn_get_instance(), &header, NULL);
+    response = otCoapNewMessage(humi_conn_get_instance(), NULL);
     if (response == NULL)
     {
         goto exit;
     }
+
+    otCoapMessageInit(response, OT_COAP_TYPE_NON_CONFIRMABLE, OT_COAP_CODE_CONTENT);
+    otCoapMessageSetToken(response, sd_rsp_data.token, sd_rsp_data.token_length);
+    otCoapMessageAppendContentFormatOption(response, OT_COAP_OPTION_CONTENT_FORMAT_CBOR);
+    (void)otCoapMessageSetPayloadMarker(response);
 
     payload_size = create_sd_response_payload(payload, sizeof(payload));
     assert(payload_size > 0);
@@ -164,17 +200,17 @@ exit:
     }
 }
 
-static void sd_handler(void *context, otCoapHeader *header, otMessage *message, const otMessageInfo *message_info)
+static void sd_handler(void *context, otMessage *message, const otMessageInfo *message_info)
 {
     (void)context;
     (void)message;
 
-    if (otCoapHeaderGetType(header) != OT_COAP_TYPE_NON_CONFIRMABLE)
+    if (otCoapMessageGetType(message) != OT_COAP_TYPE_NON_CONFIRMABLE)
     {
         return;
     }
 
-    if (otCoapHeaderGetCode(header) != OT_COAP_CODE_GET)
+    if (otCoapMessageGetCode(message) != OT_COAP_CODE_GET)
     {
         return;
     }
@@ -188,8 +224,9 @@ static void sd_handler(void *context, otCoapHeader *header, otMessage *message, 
     // TODO: Filter traffic using payload
 
     int delay = SD_MIN_DELAY + (rand() % (SD_MAX_DELAY - SD_MIN_DELAY));
-    sd_rsp_data.req_header   = *header;
     sd_rsp_data.message_info = *message_info;
+    sd_rsp_data.token_length = otCoapMessageGetTokenLength(message);
+    memcpy(sd_rsp_data.token, otCoapMessageGetToken(message), sd_rsp_data.token_length);
     sd_timer.target_time     = humi_timer_get_target_from_delay(delay);
     sd_timer.callback        = sd_response_send;
     sd_timer.context         = NULL;
@@ -201,21 +238,20 @@ static bool is_cbor_text_equal_to_str(const uint8_t *cbor_text, size_t cbor_text
     return mcbor_dec_is_text_equal_to_str(cbor_text, cbor_text_len, str);
 }
 
-static void sh_response_send(otCoapHeader *req_header, const otMessageInfo *message_info)
+static void sh_response_send(otMessage *req_header, const otMessageInfo *message_info)
 {
-    otError      error = OT_ERROR_NONE;
-    otCoapHeader header;
-    otMessage   *response;
+    otError    error = OT_ERROR_NONE;
+    otMessage *response;
 
-    otCoapHeaderInit(&header, OT_COAP_TYPE_ACKNOWLEDGMENT, OT_COAP_CODE_CHANGED);
-    otCoapHeaderSetMessageId(&header, otCoapHeaderGetMessageId(req_header));
-    otCoapHeaderSetToken(&header, otCoapHeaderGetToken(req_header), otCoapHeaderGetTokenLength(req_header));
-
-    response = otCoapNewMessage(humi_conn_get_instance(), &header, NULL);
+    response = otCoapNewMessage(humi_conn_get_instance(), NULL);
     if (response == NULL)
     {
         goto exit;
     }
+
+    otCoapMessageInit(response, OT_COAP_TYPE_ACKNOWLEDGMENT, OT_COAP_CODE_CHANGED);
+    otCoapMessageSetMessageId(response, otCoapMessageGetMessageId(req_header));
+    otCoapMessageSetToken(response, otCoapMessageGetToken(req_header), otCoapMessageGetTokenLength(req_header));
 
     error = otCoapSendResponse(humi_conn_get_instance(), response, message_info);
 
@@ -278,14 +314,14 @@ static mcbor_err_t process_and_skip_resource(int i, const mcbor_dec_t *mcbor_dec
     }
 }
 
-static void sh_handler(void *context, otCoapHeader *header, otMessage *message, const otMessageInfo *message_info)
+static void sh_handler(void *context, otMessage *message, const otMessageInfo *message_info)
 {
     char payload[SH_PAYLOAD_MAX_SIZE];
     int payload_len;
 
     int resource = (int)context;
 
-    if (otCoapHeaderGetCode(header) != OT_COAP_CODE_PUT)
+    if (otCoapMessageGetCode(message) != OT_COAP_CODE_PUT)
     {
         return;
     }
@@ -315,7 +351,10 @@ static void sh_handler(void *context, otCoapHeader *header, otMessage *message, 
         if (mcbor_err != MCBOR_ERR_SUCCESS) break;
     }
 
-    sh_response_send(header, message_info);
+    if (otCoapMessageGetType(message) == OT_COAP_TYPE_CONFIRMABLE)
+    {
+        sh_response_send(message, message_info);
+    }
 }
 
 static void ot_state_changed(otChangedFlags flags, void *context)

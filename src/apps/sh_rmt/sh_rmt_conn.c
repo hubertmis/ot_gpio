@@ -9,6 +9,9 @@
 #include <stddef.h>
 
 #include <openthread/coap.h>
+#ifdef COAP_PSK
+#include <openthread/coap_secure.h>
+#endif // COAP_PSK
 #include <openthread/ip6.h>
 #include <openthread/link.h>
 #include <openthread/thread.h>
@@ -32,6 +35,11 @@
 #define SER_TYPE_KEY "type"
 #define SER_TYPE_VAL "shcnt"
 
+#ifdef COAP_PSK
+static const char coap_psk[] = COAP_PSK;
+static const char coap_cli_id[] = "def";
+#endif // COAP_PSK
+
 static const char * const zone_names[NUM_ZONES] = {
         "dr2",
         "dr3",
@@ -50,6 +58,19 @@ typedef enum
     REQ_DOWN,
     REQ_STOP,
 } req_t;
+
+static struct {
+    otIp6Address *zone_address;
+    req_t         req;
+    int           zone;
+} cur_req;
+
+static struct {
+    uint32_t zone_mask;
+    req_t    req;
+} req_mask;
+
+static void req_next(void);
 
 // Polling period
 
@@ -199,7 +220,6 @@ static mcbor_err_t process_and_skip_resource(const mcbor_dec_t *mcbor_dec, const
 }
 
 static void sd_response_handler(void                *context,
-                                otCoapHeader        *header,
                                 otMessage           *message,
                                 const otMessageInfo *message_info,
                                 otError              result)
@@ -216,7 +236,7 @@ static void sd_response_handler(void                *context,
         return;
     }
 
-    if (otCoapHeaderGetCode(header) != OT_COAP_CODE_CONTENT)
+    if (otCoapMessageGetCode(message) != OT_COAP_CODE_CONTENT)
     {
         return;
     }
@@ -254,19 +274,18 @@ static void sd_response_handler(void                *context,
 static void sd_request(void)
 {
     otError       error = OT_ERROR_NONE;
-    otCoapHeader  header;
     otMessage   * request;
     otMessageInfo message_info;
 
-    otCoapHeaderInit(&header, OT_COAP_TYPE_NON_CONFIRMABLE, OT_COAP_CODE_GET);
-    otCoapHeaderGenerateToken(&header, 2);
-    (void)otCoapHeaderAppendUriPathOptions(&header, "sd");
-
-    request = otCoapNewMessage(humi_conn_get_instance(), &header, NULL);
+    request = otCoapNewMessage(humi_conn_get_instance(), NULL);
     if (request == NULL)
     {
         goto exit;
     }
+
+    otCoapMessageInit(request, OT_COAP_TYPE_NON_CONFIRMABLE, OT_COAP_CODE_GET);
+    otCoapMessageGenerateToken(request, 2);
+    (void)otCoapMessageAppendUriPathOptions(request, "sd");
 
     memset(&message_info, 0, sizeof(message_info));
     message_info.mInterfaceId = OT_NETIF_INTERFACE_ID_THREAD;
@@ -382,13 +401,11 @@ static void ot_state_changed(otChangedFlags flags, void *context)
 }
 
 static void zone_response_handler(void                *context,
-                                  otCoapHeader        *header,
                                   otMessage           *message,
                                   const otMessageInfo *message_info,
                                   otError              result)
 {
     (void)context;
-    (void)header;
     (void)message;
 
     if (result != OT_ERROR_NONE)
@@ -396,7 +413,13 @@ static void zone_response_handler(void                *context,
         sd_remove_zone_addr(&message_info->mPeerAddr);
     }
 
+#ifdef COAP_PSK
+    otCoapSecureDisconnect(humi_conn_get_instance());
+#else // COAP_PSK
     pp_default();
+#endif // COAP_PSK
+
+    req_next();
 }
 
 static size_t create_req_zone_payload(req_t req, uint8_t *buffer, size_t buffer_size)
@@ -433,36 +456,30 @@ static size_t create_req_zone_payload(req_t req, uint8_t *buffer, size_t buffer_
     return mcbor_get_size(&cbor);
 }
 
-static void req_zone(req_t req, int zone)
+static bool send_zone_request(req_t req, int zone, const otIp6Address *zone_addr)
 {
     const char   *zone_name = zone_names[zone];
-    otIp6Address *zone_addr = &zone_addresses[zone];
 
-    otError       error = OT_ERROR_NONE;
-    otCoapHeader  header;
-    otMessage    *request = NULL;
+    otError    error = OT_ERROR_NONE;
+    otMessage *request = NULL;
+#ifndef COAP_PSK
     otMessageInfo message_info;
+#endif // COAP_PSK
 
     uint8_t payload[SH_PAYLOAD_MAX_SIZE];
     size_t  payload_size;
 
-    if (otIp6IsAddressUnspecified(zone_addr))
-    {
-        sd_reset_timer();
-        goto exit;
-    }
-
-    otCoapHeaderInit(&header, OT_COAP_TYPE_CONFIRMABLE, OT_COAP_CODE_PUT);
-    otCoapHeaderGenerateToken(&header, 2);
-    (void)otCoapHeaderAppendUriPathOptions(&header, zone_name);
-    (void)otCoapHeaderAppendContentFormatOption(&header, OT_COAP_OPTION_CONTENT_FORMAT_CBOR);
-    (void)otCoapHeaderSetPayloadMarker(&header);
-
-    request = otCoapNewMessage(humi_conn_get_instance(), &header, NULL);
+    request = otCoapNewMessage(humi_conn_get_instance(), NULL);
     if (request == NULL)
     {
         goto exit;
     }
+
+    otCoapMessageInit(request, OT_COAP_TYPE_NON_CONFIRMABLE, OT_COAP_CODE_PUT);
+    otCoapMessageGenerateToken(request, 2);
+    (void)otCoapMessageAppendUriPathOptions(request, zone_name);
+    (void)otCoapMessageAppendContentFormatOption(request, OT_COAP_OPTION_CONTENT_FORMAT_CBOR);
+    (void)otCoapMessageSetPayloadMarker(request);
 
     payload_size = create_req_zone_payload(req, payload, sizeof(payload));
     assert(payload_size > 0);
@@ -474,33 +491,110 @@ static void req_zone(req_t req, int zone)
         goto exit;
     }
 
+#ifdef COAP_PSK
+    error = otCoapSecureSendRequest(humi_conn_get_instance(), request, zone_response_handler, NULL);
+#else // COAP_PSK
     memset(&message_info, 0, sizeof(message_info));
     message_info.mInterfaceId = OT_NETIF_INTERFACE_ID_THREAD;
     message_info.mPeerPort    = OT_DEFAULT_COAP_PORT;
     message_info.mPeerAddr    = *zone_addr;
 
     error = otCoapSendRequest(humi_conn_get_instance(), request, &message_info, zone_response_handler, NULL);
+#endif // COAP_PSK
 
-    if (error == OT_ERROR_NONE)
-    {
-        pp_fast();
-    }
-
-    exit:
+exit:
     if ((error != OT_ERROR_NONE) && (request != NULL))
     {
         otMessageFree(request);
+    }
+
+    return error == OT_ERROR_NONE;
+}
+
+void secure_req_conn_handler(bool connected, void *context)
+{
+    (void)context;
+
+    if (connected)
+    {
+        send_zone_request(cur_req.req, cur_req.zone, cur_req.zone_address);
+    }
+    else
+    {
+        pp_default();
+        sd_remove_zone_addr(cur_req.zone_address);
+    }
+}
+
+static void req_zone(req_t req, int zone)
+{
+    otIp6Address *zone_addr = &zone_addresses[zone];
+
+#ifdef COAP_PSK
+    otError    error;
+    otSockAddr sockAddr = {
+            .mAddress = *zone_addr,
+            .mPort    = OT_DEFAULT_COAP_SECURE_PORT,
+            .mScopeId = OT_NETIF_INTERFACE_ID_THREAD,
+    };
+#endif // COAP_PSK
+
+    if (otIp6IsAddressUnspecified(zone_addr))
+    {
+        sd_reset_timer();
+        goto exit;
+    }
+
+#ifdef COAP_PSK
+    cur_req.req          = req;
+    cur_req.zone         = zone;
+    cur_req.zone_address = zone_addr;
+
+    error = otCoapSecureConnect(humi_conn_get_instance(), &sockAddr, secure_req_conn_handler, NULL);
+    if (error != OT_ERROR_NONE)
+    {
+        sd_remove_zone_addr(zone_addr);
+        goto exit;
+    }
+    else
+    {
+        pp_fast();
+    }
+#else // COAP_PSK
+    bool result = send_zone_request(req, zone, zone_addr);
+    if (result)
+    {
+        pp_fast();
+    }
+#endif // COAP_PSK
+
+exit:
+    return;
+}
+
+static void req_next(void)
+{
+    if (req_mask.zone_mask)
+    {
+        for (int i = 0; i < NUM_ZONES; i++)
+        {
+            uint32_t cur_mask = (1 << i);
+
+            if (req_mask.zone_mask & cur_mask)
+            {
+                req_zone(req_mask.req, i);
+                req_mask.zone_mask &= ~cur_mask;
+            }
+        }
     }
 }
 
 static void req_zones(req_t req, uint32_t zone_mask)
 {
-    for (int i = 0; i < NUM_ZONES; i++)
-    {
-        if (zone_mask & (1 << i)) {
-            req_zone(req, i);
-        }
-    }
+    req_mask.req       = req;
+    req_mask.zone_mask = zone_mask;
+
+    req_next();
 }
 
 
@@ -512,6 +606,16 @@ void sh_rmt_conn_init(void)
 
     error = otSetStateChangedCallback(humi_conn_get_instance(), ot_state_changed, NULL);
     assert(error == OT_ERROR_NONE);
+
+#ifdef COAP_PSK
+    error = otCoapSecureSetPsk(humi_conn_get_instance(), coap_psk, strlen(coap_psk), coap_cli_id, strlen(coap_cli_id));
+    assert(error == OT_ERROR_NONE);
+
+    otCoapSecureSetSslAuthMode(humi_conn_get_instance(), true);
+
+    error = otCoapSecureStart(humi_conn_get_instance(), OT_DEFAULT_COAP_SECURE_PORT, NULL);
+    assert(error == OT_ERROR_NONE);
+#endif // COAP_PSK
 
     error = otCoapStart(humi_conn_get_instance(), OT_DEFAULT_COAP_PORT);
     assert(error == OT_ERROR_NONE);
