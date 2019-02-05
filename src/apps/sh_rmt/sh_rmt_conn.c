@@ -13,6 +13,7 @@
 #include <openthread/coap_secure.h>
 #endif // COAP_PSK
 #include <openthread/ip6.h>
+#include <openthread/joiner.h>
 #include <openthread/link.h>
 #include <openthread/thread.h>
 
@@ -22,7 +23,7 @@
 #include "../../lib/mcbor/mcbor_enc.h"
 #include "../../lib/timer/humi_timer.h"
 
-#define NUM_ZONES 7
+#define NUM_ZONES 6
 
 #define REQ_ZONE_ACTION_KEY  "val"
 #define REQ_ZONE_ACTION_UP   "up"
@@ -43,11 +44,10 @@ static const char coap_cli_id[] = "def";
 static const char * const zone_names[NUM_ZONES] = {
         "dr2",
         "dr3",
-        "k2",
+        "k",
         "br",
         "lr",
         "dr1",
-        "k1",
 };
 
 static otIp6Address zone_addresses[NUM_ZONES];
@@ -395,6 +395,29 @@ static void ot_state_changed(otChangedFlags flags, void *context)
                 sh_rmt_anim_connected();
 
                 sd_init();
+                break;
+        }
+    }
+
+    if (flags & OT_CHANGED_JOINER_STATE)
+    {
+        otJoinerState j_st = otJoinerGetState(humi_conn_get_instance());
+
+        switch (j_st)
+        {
+            case OT_JOINER_STATE_DISCOVER:
+                sh_rmt_anim_discovery();
+                break;
+
+            case OT_JOINER_STATE_CONNECT:
+            case OT_JOINER_STATE_CONNECTED:
+            case OT_JOINER_STATE_ENTRUST:
+                sh_rmt_anim_commissioning();
+                break;
+
+            case OT_JOINER_STATE_IDLE:
+            case OT_JOINER_STATE_JOINED:
+                sh_rmt_anim_commissioning_idle();
                 break;
         }
     }

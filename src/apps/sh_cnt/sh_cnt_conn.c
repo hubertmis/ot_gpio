@@ -61,7 +61,7 @@ static otCoapResource sh_resources[] = {
                 .mContext = (void *)0,
         },
         {
-                .mUriPath = "k2",
+                .mUriPath = "k",
                 .mHandler = sh_handler,
                 .mContext = (void *)1,
         },

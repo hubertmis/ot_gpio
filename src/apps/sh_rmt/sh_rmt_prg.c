@@ -12,7 +12,7 @@
 #include "sh_rmt_conn.h"
 #include "../../lib/timer/humi_timer.h"
 
-#define NUM_ZONES 7
+#define NUM_ZONES 6
 #define ALL_ZONES (0xFFFFFFFFUL >> (32 - NUM_ZONES))
 #define NO_ZONES  0UL
 
@@ -20,14 +20,6 @@
 
 static const sh_rmt_btn_idx_t zone_btn_map[6] = {
         3, 8, 7, 5, 1, 0
-};
-
-#define KITCHEN_ZONES_MAP 0x44UL
-static uint32_t kitchen_zones[4] = {
-        0x00,
-        0x44,
-        0x04,
-        0x40,
 };
 
 static uint32_t active_zones;
@@ -127,30 +119,8 @@ void sh_rmt_btn_evt(sh_rmt_btn_idx_t idx)
             }
             break;
 
-        case 7: // Kitchen window
-            {
-                uint32_t active_kitchen_zones = active_zones & KITCHEN_ZONES_MAP;
-                uint32_t next_kitchen_zones;
-
-                for (int i = 0; i < sizeof(kitchen_zones) / sizeof(kitchen_zones[0]); i++)
-                {
-                    if (active_kitchen_zones == kitchen_zones[i])
-                    {
-                        next_kitchen_zones = kitchen_zones[(i + 1) % (sizeof(kitchen_zones) / sizeof(kitchen_zones[0]))];
-                        active_zones &= (~(KITCHEN_ZONES_MAP));
-                        active_zones |= next_kitchen_zones;
-                    }
-                }
-            }
-            break;
-
         default:
             for (int i = 0; i < sizeof(zone_btn_map) / sizeof(zone_btn_map[0]); i++) {
-                if (zone_btn_map[i] == 7)
-                {
-                    // Kitchen window - special case
-                    continue;
-                }
                 if (zone_btn_map[i] == idx) {
                     active_zones ^= (1UL << i);
                     set_direction(DIRECTION_NONE);
