@@ -203,7 +203,7 @@ set(SH_CNT_SRCS
         src/apps/sh_cnt/main.c
         src/apps/sh_cnt/sh_cnt_btn.c
         src/apps/sh_cnt/sh_cnt_btn.h
-        src/apps/sh_cnt/.c
+        src/apps/sh_cnt/sh_cnt_conn.c
         src/apps/sh_cnt/sh_cnt_conn.h
         src/apps/sh_cnt/sh_cnt_display.c
         src/apps/sh_cnt/sh_cnt_display.h

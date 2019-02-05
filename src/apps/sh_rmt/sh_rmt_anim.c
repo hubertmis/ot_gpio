@@ -11,7 +11,7 @@
 #include "sh_rmt_led.h"
 #include "../../lib/timer/humi_timer.h"
 
-#define NUM_ZONES 7
+#define NUM_ZONES 6
 
 #define ANIM_DIR_TIME 200
 
@@ -42,8 +42,19 @@ static bool         connected;
 static uint32_t     conn_step;
 static humi_timer_t conn_timer;
 
+#define COMM_LED      10
+#define COMM_DISC_INT 500
+#define COMM_COMM_INT 50
+static enum {
+    COMM_IDLE,
+    COMM_DISCOVERY,
+    COMM_COMMISSIONING,
+} comm_state;
+static uint32_t     comm_step;
+static humi_timer_t comm_timer;
+
 const sh_rmt_led_idx_t zone_led_map[NUM_ZONES] = {
-        7, 11, 9, 6, 2, 0, 10
+        7, 11, 9, 6, 2, 0
 };
 const sh_rmt_led_idx_t up_leds[] = {
         3, 8
@@ -284,6 +295,40 @@ static void conn_anim(void *context)
     humi_timer_gen_add(&conn_timer);
 }
 
+static void comm_anim(void *context)
+{
+    (void)context;
+
+    uint32_t delay = COMM_COMM_INT;
+
+    switch (comm_state)
+    {
+        case COMM_IDLE:
+            sh_rmt_led_off(COMM_LED);
+            break;
+
+        case COMM_DISCOVERY:
+            delay = COMM_DISC_INT;
+            /* fall through */
+
+        case COMM_COMMISSIONING:
+            if (comm_step % 2)
+            {
+                sh_rmt_led_on(COMM_LED);
+            }
+            else
+            {
+                sh_rmt_led_off(COMM_LED);
+            }
+
+            comm_step ^= 1;
+
+            comm_timer.target_time = humi_timer_get_target_from_delay(delay);
+            humi_timer_gen_add(&comm_timer);
+
+            break;
+    }
+}
 
 void sh_rmt_anim_display_zones(uint32_t zone_mask)
 {
@@ -341,3 +386,37 @@ void sh_rmt_anim_connected(void)
     sh_rmt_led_off(CONN_LED);
 }
 
+void sh_rmt_anim_commissioning_idle(void)
+{
+    comm_state = COMM_IDLE;
+
+    sh_rmt_led_off(COMM_LED);
+}
+
+void sh_rmt_anim_discovery(void)
+{
+    comm_state = COMM_DISCOVERY;
+    comm_step  = 0;
+
+    sh_rmt_led_on(COMM_LED);
+
+    comm_timer.target_time = humi_timer_get_target_from_delay(COMM_DISC_INT);
+    comm_timer.callback    = comm_anim;
+    comm_timer.context     = NULL;
+
+    humi_timer_gen_add(&comm_timer);
+}
+
+void sh_rmt_anim_commissioning(void)
+{
+    comm_state = COMM_COMMISSIONING;
+    comm_step  = 0;
+
+    sh_rmt_led_on(COMM_LED);
+
+    comm_timer.target_time = humi_timer_get_target_from_delay(COMM_COMM_INT);
+    comm_timer.callback    = comm_anim;
+    comm_timer.context     = NULL;
+
+    humi_timer_gen_add(&comm_timer);
+}

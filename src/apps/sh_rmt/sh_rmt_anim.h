@@ -18,4 +18,8 @@ void sh_rmt_anim_down(void);
 void sh_rmt_anim_connecting(void);
 void sh_rmt_anim_connected(void);
 
+void sh_rmt_anim_commissioning_idle(void);
+void sh_rmt_anim_discovery(void);
+void sh_rmt_anim_commissioning(void);
+
 #endif //OT_GPIO_SH_RMT_ANIM_H
