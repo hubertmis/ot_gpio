@@ -16,6 +16,7 @@ void humi_btn_process(void);
 
 bool humi_btn_is_pressed(humi_btn_idx_t idx);
 
-extern void humi_btn_evt(humi_btn_idx_t idx);
+extern void humi_btn_press_evt(humi_btn_idx_t idx);
+extern void humi_btn_release_evt(humi_btn_idx_t idx);
 
 #endif //OT_GPIO_HUMI_BTN_H

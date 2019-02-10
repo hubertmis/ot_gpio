@@ -10,5 +10,6 @@
 void sh_cnt_conn_init(void);
 void sh_cnt_conn_process(void);
 bool sh_cnt_conn_is_pending(void);
+void sh_cnt_conn_reset(void);
 
 #endif //OT_GPIO_SH_CNT_CONN_H

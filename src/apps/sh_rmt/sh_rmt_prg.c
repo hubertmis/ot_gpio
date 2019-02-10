@@ -16,7 +16,7 @@
 #define ALL_ZONES (0xFFFFFFFFUL >> (32 - NUM_ZONES))
 #define NO_ZONES  0UL
 
-#define INACTIVITY_TIME 5000
+#define INACTIVITY_TIME 15000
 
 static const sh_rmt_btn_idx_t zone_btn_map[6] = {
         3, 8, 7, 5, 1, 0
@@ -39,6 +39,8 @@ typedef enum {
 static inactivity_t inactivity_step;
 
 static humi_timer_t inactivity_timer;
+
+static uint8_t reset_sequence;
 
 static void set_direction(direction_t dir)
 {
@@ -99,12 +101,20 @@ void sh_rmt_btn_evt(sh_rmt_btn_idx_t idx)
             {
                 set_direction(DIRECTION_UP);
             }
+            else
+            {
+                reset_sequence++;
+            }
             break;
 
         case 2: // Left (down)
             if (active_zones)
             {
                 set_direction(DIRECTION_DOWN);
+            }
+            else
+            {
+                reset_sequence++;
             }
             break;
 
@@ -122,8 +132,16 @@ void sh_rmt_btn_evt(sh_rmt_btn_idx_t idx)
         default:
             for (int i = 0; i < sizeof(zone_btn_map) / sizeof(zone_btn_map[0]); i++) {
                 if (zone_btn_map[i] == idx) {
-                    active_zones ^= (1UL << i);
-                    set_direction(DIRECTION_NONE);
+                    if ((idx == 8) && sh_rmt_btn_reset_btn_pressed())
+                    {
+                        sh_rmt_conn_reset();
+                        sh_rmt_anim_stop();
+                    }
+                    else
+                    {
+                        active_zones ^= (1UL << i);
+                        set_direction(DIRECTION_NONE);
+                    }
                     break;
                 }
             }

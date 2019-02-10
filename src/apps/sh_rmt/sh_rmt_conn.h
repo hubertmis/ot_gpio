@@ -11,6 +11,7 @@
 void sh_rmt_conn_init(void);
 void sh_rmt_conn_process(void);
 bool sh_rmt_conn_is_pending(void);
+void sh_rmt_conn_reset(void);
 
 void sh_rmt_conn_up(uint32_t zone_mask);
 void sh_rmt_conn_down(uint32_t zone_mask);

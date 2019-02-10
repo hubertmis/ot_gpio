@@ -18,9 +18,12 @@ void sh_cnt_btn_process(void)
     humi_btn_process();
 }
 
-void humi_btn_evt(humi_btn_idx_t idx)
+void humi_btn_press_evt(humi_btn_idx_t idx)
 {
     sh_cnt_btn_evt();
 }
 
-
+void humi_btn_release_evt(humi_btn_idx_t idx)
+{
+    sh_cnt_btn_release_evt();
+}

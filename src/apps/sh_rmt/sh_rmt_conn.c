@@ -656,6 +656,13 @@ bool sh_rmt_conn_is_pending(void)
     return humi_conn_is_pending();
 }
 
+void sh_rmt_conn_reset(void)
+{
+    humi_conn_stop();
+    humi_conn_decommission();
+    humi_conn_start();
+}
+
 void sh_rmt_conn_up(uint32_t zone_mask) {
     req_zones(REQ_UP, zone_mask);
 }
