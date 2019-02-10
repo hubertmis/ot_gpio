@@ -9,5 +9,6 @@ void sh_cnt_btn_init(void);
 void sh_cnt_btn_process(void);
 
 extern void sh_cnt_btn_evt(void);
+extern void sh_cnt_btn_release_evt(void);
 
 #endif //OT_GPIO_SH_CNT_BTN_H

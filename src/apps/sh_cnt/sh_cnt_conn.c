@@ -428,3 +428,9 @@ bool sh_cnt_conn_is_pending(void)
     return humi_conn_is_pending();
 }
 
+void sh_cnt_conn_reset(void)
+{
+    humi_conn_stop();
+    humi_conn_decommission();
+    humi_conn_start();
+}

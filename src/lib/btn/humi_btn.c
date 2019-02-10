@@ -11,20 +11,67 @@
 
 #include "../timer/humi_timer.h"
 
+typedef enum {
+    EVT_TYPE_PRS,
+    EVT_TYPE_RLS,
+} btn_evt_type_t;
+
 static const humi_btn_t *btn_pins;
 static int               num_btn_pins;
 
-static uint32_t          btn_evts;
+static uint32_t          btn_prs_evts;
+static uint32_t          btn_rls_evts;
 static volatile bool     ignore_evts;
 
-static void btn_evt_enqueue(humi_btn_idx_t i)
+static uint32_t * get_evt_map(btn_evt_type_t type)
 {
-    btn_evts |= (1 << i);
+    uint32_t *evts;
+
+    switch (type)
+    {
+        case EVT_TYPE_PRS:
+            evts = &btn_prs_evts;
+            break;
+
+        case EVT_TYPE_RLS:
+            evts = &btn_rls_evts;
+            break;
+
+        default:
+            evts = NULL;
+            assert(false);
+    }
+
+    return evts;
 }
 
-static void btn_evt_dequeue(humi_btn_idx_t i)
+static void btn_evt_enqueue(btn_evt_type_t type, humi_btn_idx_t i)
 {
-    btn_evts &= ~(1 << i);
+    uint32_t *evts = get_evt_map(type);
+
+    *evts |= (1 << i);
+}
+
+static void btn_evt_dequeue(btn_evt_type_t type, humi_btn_idx_t i)
+{
+    uint32_t *evts = get_evt_map(type);
+
+    *evts &= ~(1 << i);
+}
+
+static void process_evt(btn_evt_type_t type, humi_btn_idx_t i)
+{
+    switch (type)
+    {
+        case EVT_TYPE_PRS:
+            btn_evt_enqueue(EVT_TYPE_PRS, i);
+            break;
+
+        case EVT_TYPE_RLS:
+            btn_evt_dequeue(EVT_TYPE_PRS, i);
+            btn_evt_enqueue(EVT_TYPE_RLS, i);
+            break;
+    }
 }
 
 static void btn_evt_handler(nrfx_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
@@ -36,18 +83,11 @@ static void btn_evt_handler(nrfx_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
         return;
     }
 
-    if (nrfx_gpiote_in_is_set(pin))
-    {
-        ignore_evts = true;
-        humi_timer_btn_start();
-        return;
-    }
-
     for (int i = 0; i < num_btn_pins; i++)
     {
         if (btn_pins[i] == pin)
         {
-            btn_evt_enqueue(i);
+            process_evt(nrfx_gpiote_in_is_set(pin) ? EVT_TYPE_RLS : EVT_TYPE_PRS, i);
             ignore_evts = true;
             humi_timer_btn_start();
             break;
@@ -89,18 +129,25 @@ void humi_btn_process(void)
 {
     for (int i = 0; i < num_btn_pins; i++)
     {
-        if (btn_evts & (1 << i))
+        if (btn_prs_evts & (1 << i))
         {
-            humi_btn_evt(i);
+            humi_btn_press_evt(i);
 
-            btn_evt_dequeue(i);
+            btn_evt_dequeue(EVT_TYPE_PRS, i);
+        }
+
+        if (btn_rls_evts & (1 << i))
+        {
+            humi_btn_release_evt(i);
+
+            btn_evt_dequeue(EVT_TYPE_RLS, i);
         }
     }
 }
 
 bool humi_btn_is_pressed(humi_btn_idx_t idx)
 {
-    
+    return !nrfx_gpiote_in_is_set(btn_pins[idx]);
 }
 
 void humi_timer_btn_fired(void)
@@ -108,4 +155,13 @@ void humi_timer_btn_fired(void)
     ignore_evts = false;
 }
 
+void __attribute__((weak)) humi_btn_press_evt(humi_btn_idx_t idx)
+{
+    // Intentionally empty
+}
+
+void __attribute__((weak)) humi_btn_release_evt(humi_btn_idx_t idx)
+{
+    // Intentionally empty
+}
 

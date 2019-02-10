@@ -31,8 +31,12 @@ void sh_rmt_btn_process(void)
     humi_btn_process();
 }
 
-void humi_btn_evt(humi_btn_idx_t idx)
+void humi_btn_press_evt(humi_btn_idx_t idx)
 {
     sh_rmt_btn_evt(idx);
 }
 
+bool sh_rmt_btn_reset_btn_pressed(void)
+{
+    return humi_btn_is_pressed(2) && humi_btn_is_pressed(6);
+}
