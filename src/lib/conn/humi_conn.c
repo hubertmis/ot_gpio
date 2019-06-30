@@ -61,6 +61,9 @@ static void join_callback(otError error, void *context)
 
 void humi_conn_init(bool sed) {
     otError error;
+    struct otIp6Address site_local_all_nodes_addr = {.mFields = {.m8 = 
+        {0xff, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01} }};
 
     otSysInit(0, NULL);
 
@@ -95,6 +98,9 @@ void humi_conn_init(bool sed) {
     }
 
     error = otThreadSetLinkMode(ot_instance, link_mode_config);
+    assert(error == OT_ERROR_NONE);
+
+    error = otIp6SubscribeMulticastAddress(ot_instance, &site_local_all_nodes_addr);
     assert(error == OT_ERROR_NONE);
 }
 

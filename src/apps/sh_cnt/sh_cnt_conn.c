@@ -215,7 +215,7 @@ static void sd_handler(void *context, otMessage *message, const otMessageInfo *m
         return;
     }
 
-    if (!humi_conn_is_addr_local(&message_info->mPeerAddr))
+    if (!humi_conn_is_addr_local(&message_info->mSockAddr))
     {
         // Allow only local traffic, because there is no encryption at the moment
         return;

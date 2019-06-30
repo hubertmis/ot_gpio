@@ -16,7 +16,7 @@
 #define ALL_ZONES (0xFFFFFFFFUL >> (32 - NUM_ZONES))
 #define NO_ZONES  0UL
 
-#define INACTIVITY_TIME 15000
+#define INACTIVITY_TIME 22000
 
 static const sh_rmt_btn_idx_t zone_btn_map[6] = {
         3, 8, 7, 5, 1, 0
