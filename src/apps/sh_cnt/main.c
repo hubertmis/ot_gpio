@@ -110,7 +110,7 @@ int main(int argc, char *argv[])
 
     sh_cnt_btn_init();
     sh_cnt_display_init();
-    sh_cnt_mot_init(5000);
+    sh_cnt_mot_init(35000);
 
     nrf_gpio_pin_set(22);
     delay_ms(100);

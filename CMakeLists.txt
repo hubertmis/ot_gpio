@@ -71,8 +71,11 @@ set(
 
 add_library(
     nrfx
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/nrfx/drivers/src/nrfx_saadc.c
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party/nrfx/drivers/src/nrfx_gpiote.c
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party/nrfx/drivers/src/nrfx_rtc.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/nrfx/drivers/src/nrfx_spim.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/nrfx/drivers/src/prs/nrfx_prs.c
 )
 
 set(
@@ -174,6 +177,8 @@ add_executable(
     src/lib/mcbor/mcbor_enc.c
     src/lib/mcbor/mcbor_enc.h
     src/lib/mcbor/mcbor_types.h
+    src/lib/pwr/humi_pwr.c
+    src/lib/pwr/humi_pwr.h
     src/lib/timer/humi_timer.c
     src/lib/timer/humi_timer.h
 )
@@ -228,9 +233,13 @@ set(SH_CNT_SRCS
         src/lib/mcbor/mcbor_enc.c
         src/lib/mcbor/mcbor_enc.h
         src/lib/mcbor/mcbor_types.h
+        src/lib/pwr/humi_pwr.c
+        src/lib/pwr/humi_pwr.h
+        src/lib/rly/humi_rly.h
+        src/lib/rly/humi_rly.c
         src/lib/timer/humi_timer.c
         src/lib/timer/humi_timer.h
-)
+    )
 
 foreach(SH_CNT_VAR dr k lr br)
     set(BIN_NAME sh_cnt_${SH_CNT_VAR})
@@ -257,6 +266,69 @@ foreach(SH_CNT_VAR dr k lr br)
 
     FinalizeHex(${BIN_NAME})
 endforeach(SH_CNT_VAR)
+
+#####################################
+# Prepare the Temp Touchscreen binary
+#####################################
+
+add_executable(
+        temp_tscrn
+        src/apps/temp_tscrn/ctrl.c
+        src/apps/temp_tscrn/ctrl.h
+        src/apps/temp_tscrn/display.c
+        src/apps/temp_tscrn/display.h
+        src/apps/temp_tscrn/main.c
+        src/apps/temp_tscrn/output.c
+        src/apps/temp_tscrn/output.h
+        src/apps/temp_tscrn/temp_scrn.h
+        src/apps/temp_tscrn/temp_scrn.c
+        src/apps/temp_tscrn/temp_tscrn_data.c
+        src/apps/temp_tscrn/temp_tscrn_data.h
+        src/lib/conn/humi_conn.c
+        src/lib/conn/humi_conn.h
+        src/lib/ft8xx/ft8xx.c
+        src/lib/ft8xx/ft8xx.h
+        src/lib/ft8xx/ft8xx_copro.h
+        src/lib/ft8xx/ft8xx_copro.c
+        src/lib/ft8xx/ft8xx_dl.h
+        src/lib/ft8xx/ft8xx_drv.c
+        src/lib/ft8xx/ft8xx_drv.h
+        src/lib/ft8xx/ft8xx_memory.h
+        src/lib/lite_log/lite_log.c
+        src/lib/lite_log/lite_log.h
+        src/lib/lite_log/log_data.h
+        src/lib/mcbor/mcbor_const.h
+        src/lib/mcbor/mcbor_dec.c
+        src/lib/mcbor/mcbor_dec.h
+        src/lib/mcbor/mcbor_enc.c
+        src/lib/mcbor/mcbor_enc.h
+        src/lib/mcbor/mcbor_types.h
+        src/lib/ntc/humi_ntc.c
+        src/lib/ntc/humi_ntc.h
+        src/lib/pwr/humi_pwr.c
+        src/lib/pwr/humi_pwr.h
+        src/lib/rly/humi_rly.c
+        src/lib/rly/humi_rly.h
+        src/lib/timer/humi_timer.c
+        src/lib/timer/humi_timer.h
+)
+
+target_compile_definitions(temp_tscrn
+        PUBLIC "VENDOR_MODEL=\"temp_tscrn\""
+        PUBLIC "SW_VERSION=\"${GIT_COMMIT_HASH}\""
+        )
+
+if (${PSKD})
+    target_compile_definitions(temp_tscrn PUBLIC "PSKD=\"${PSKD}\"")
+endif(${PSKD})
+
+if (${COAP_PSK})
+    target_compile_definitions(temp_tscrn PUBLIC "COAP_PSK=\"${COAP_PSK}\"")
+endif(${COAP_PSK})
+
+target_link_libraries (temp_tscrn ${OT_LIBS} nrfx m)
+
+FinalizeHex(temp_tscrn)
 
 ############
 # Some tests
