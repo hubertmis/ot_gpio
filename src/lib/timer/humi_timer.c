@@ -215,6 +215,12 @@ uint32_t humi_timer_get_target_from_delay(uint32_t delay)
     return humi_timer_get_target(humi_timer_get_time(), delay);
 }
 
+uint32_t humi_timer_get_time_diff(uint32_t t2, uint32_t t1)
+{
+    uint32_t ticks_diff = (t2 - t1) % nrfx_rtc_max_ticks_get(&nrfx_rtc_instance);
+    return ticks_diff * 1000 / RTC_FREQ;
+}
+
 void humi_timer_gen_remove(humi_timer_t *timer)
 {
     humi_timer_t *prev;
@@ -291,6 +297,19 @@ void humi_timer_gen_add(humi_timer_t *timer)
         prev->next  = timer;
         timer->next = cur;
     }
+}
+
+bool humi_timer_gen_is_running(const humi_timer_t *timer)
+{
+    for (humi_timer_t *item = head; item != NULL; item = item->next)
+    {
+        if (item == timer)
+        {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 void __attribute__((weak)) humi_timer_led_fired(void)

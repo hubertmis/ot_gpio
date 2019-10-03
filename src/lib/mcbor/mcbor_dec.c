@@ -31,7 +31,12 @@ static bool is_ptr_at_buf_end(const mcbor_dec_t *mcbor_dec, const void *ptr)
     return (ptr == (const void *)((const uint8_t *)(mcbor_dec->buf) + mcbor_dec->buf_size));
 }
 
-static mcbor_err_t get_len(const mcbor_dec_t *mcbor_dec, const uint8_t *item, uint32_t *len, uint8_t *size)
+static bool is_ptr_in_buf_including_end(const mcbor_dec_t *mcbor_dec, const void *ptr)
+{
+    return is_ptr_in_buf(mcbor_dec, ptr) || is_ptr_at_buf_end(mcbor_dec, ptr);
+}
+
+static mcbor_err_t get_int(const mcbor_dec_t *mcbor_dec, const uint8_t *item, uint32_t *value, uint8_t *size)
 {
     assert(is_ptr_in_buf(mcbor_dec, item));
 
@@ -40,15 +45,15 @@ static mcbor_err_t get_len(const mcbor_dec_t *mcbor_dec, const uint8_t *item, ui
 
     if (add_info < ADD_INFO_1_BYTE)
     {
-        *len  = add_info;
-        *size = INIT_BYTE_SIZE;
+        *value = add_info;
+        *size  = INIT_BYTE_SIZE;
         return MCBOR_ERR_SUCCESS;
     }
 
     switch (add_info)
     {
         case ADD_INFO_1_BYTE:
-            if (!is_ptr_in_buf(mcbor_dec, item + 1))
+            if (!is_ptr_in_buf_including_end(mcbor_dec, item + 1))
             {
                 return MCBOR_ERR_PARSE;
             }
@@ -58,7 +63,7 @@ static mcbor_err_t get_len(const mcbor_dec_t *mcbor_dec, const uint8_t *item, ui
             break;
 
         case ADD_INFO_2_BYTE:
-            if (!is_ptr_in_buf(mcbor_dec, item + 2))
+            if (!is_ptr_in_buf_including_end(mcbor_dec, item + 2))
             {
                 return MCBOR_ERR_PARSE;
             }
@@ -69,7 +74,7 @@ static mcbor_err_t get_len(const mcbor_dec_t *mcbor_dec, const uint8_t *item, ui
             break;
 
         case ADD_INFO_4_BYTE:
-            if (!is_ptr_in_buf(mcbor_dec, item + 4))
+            if (!is_ptr_in_buf_including_end(mcbor_dec, item + 4))
             {
                 return MCBOR_ERR_PARSE;
             }
@@ -85,8 +90,13 @@ static mcbor_err_t get_len(const mcbor_dec_t *mcbor_dec, const uint8_t *item, ui
             return MCBOR_ERR_PARSE;
     }
 
-    *len = result;
+    *value = result;
     return MCBOR_ERR_SUCCESS;
+}
+
+static mcbor_err_t get_len(const mcbor_dec_t *mcbor_dec, const uint8_t *item, uint32_t *len, uint8_t *size)
+{
+    return get_int(mcbor_dec, item, len, size);
 }
 
 void mcbor_dec_init(const void *buffer, size_t buffer_size, mcbor_dec_t *mcbor_dec)
@@ -191,6 +201,30 @@ mcbor_err_t mcbor_dec_skip_item(const mcbor_dec_t *mcbor_dec, const void **item_
     return MCBOR_ERR_SUCCESS;
 }
 
+mcbor_err_t mcbor_dec_get_unsigned(const mcbor_dec_t *mcbor_dec, const void *item, uint64_t *number)
+{
+    mcbor_err_t err;
+    uint32_t    value;
+    uint8_t     size;
+    
+    assert(is_ptr_in_buf(mcbor_dec, item));
+
+    if (((*(const uint8_t *)item) & MAJ_TYPE_MASK) != MAJ_TYPE_UINT)
+    {
+        return MCBOR_ERR_NOT_FOUND;
+    }
+
+    err = get_int(mcbor_dec, item, &value, &size);
+    if (err != MCBOR_ERR_SUCCESS)
+    {
+        return err;
+    }
+
+    *number = value;
+
+    return MCBOR_ERR_SUCCESS;
+}
+
 mcbor_err_t mcbor_dec_get_text(const mcbor_dec_t *mcbor_dec, const void *item, const char **text, size_t *len)
 {
     mcbor_err_t err;
@@ -213,7 +247,7 @@ mcbor_err_t mcbor_dec_get_text(const mcbor_dec_t *mcbor_dec, const void *item, c
     *text = (const char *)item + size;
     *len  = local_len;
 
-    if (!is_ptr_in_buf(mcbor_dec, *text + local_len) && !is_ptr_at_buf_end(mcbor_dec, *text + local_len))
+    if (!is_ptr_in_buf_including_end(mcbor_dec, *text + local_len))
     {
         return MCBOR_ERR_PARSE;
     }

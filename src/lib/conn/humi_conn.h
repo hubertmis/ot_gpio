@@ -25,4 +25,6 @@ bool humi_conn_is_addr_local(const otIp6Address *addr);
 void humi_conn_fast_poll_period(void);
 void humi_conn_normal_poll_period(void);
 
+extern void humi_conn_join_result(otError error);
+
 #endif //OT_GPIO_HUMI_CONN_H

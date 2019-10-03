@@ -8,7 +8,8 @@ cmake_policy(SET CMP0012 NEW)
 
 add_custom_command(
     OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/third_party/openthread/output/nrf52840/lib/libmbedcrypto.a
-    OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/third_party/openthread/output/nrf52840/lib/libopenthread-diag.a
+    OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/third_party/openthread/output/nrf52840/lib/libnordicsemi-nrf52840-radio-driver.a
+    OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/third_party/openthread/output/nrf52840/lib/libnordicsemi-nrf52840-sdk.a
     OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/third_party/openthread/output/nrf52840/lib/libopenthread-nrf52840.a
     OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/third_party/openthread/output/nrf52840/lib/libopenthread-ftd.a
     OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/third_party/openthread/output/nrf52840/lib/libopenthread-platform-utils.a
@@ -22,7 +23,8 @@ add_custom_command(
 add_custom_target(
     openthread
     DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/openthread/output/nrf52840/lib/libmbedcrypto.a
-    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/openthread/output/nrf52840/lib/libopenthread-diag.a
+    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/openthread/output/nrf52840/lib/libnordicsemi-nrf52840-radio-driver.a
+    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/openthread/output/nrf52840/lib/libnordicsemi-nrf52840-sdk.a
     DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/openthread/output/nrf52840/lib/libopenthread-nrf52840.a
     DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/openthread/output/nrf52840/lib/libopenthread-ftd.a
     DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/openthread/output/nrf52840/lib/libopenthread-platform-utils.a
@@ -32,8 +34,11 @@ add_custom_target(
 add_library(libmbedcrypto STATIC IMPORTED)
 set_property(TARGET libmbedcrypto PROPERTY IMPORTED_LOCATION ${CMAKE_CURRENT_SOURCE_DIR}/third_party/openthread/output/nrf52840/lib/libmbedcrypto.a)
 
-add_library(libopenthread-diag STATIC IMPORTED)
-set_property(TARGET libopenthread-diag PROPERTY IMPORTED_LOCATION ${CMAKE_CURRENT_SOURCE_DIR}/third_party/openthread/output/nrf52840/lib/libopenthread-diag.a)
+add_library(libnordicsemi-nrf52840-radio-driver STATIC IMPORTED)
+set_property(TARGET libnordicsemi-nrf52840-radio-driver PROPERTY IMPORTED_LOCATION ${CMAKE_CURRENT_SOURCE_DIR}/third_party/openthread/output/nrf52840/lib/libnordicsemi-nrf52840-radio-driver.a)
+
+add_library(libnordicsemi-nrf52840-sdk STATIC IMPORTED)
+set_property(TARGET libnordicsemi-nrf52840-sdk PROPERTY IMPORTED_LOCATION ${CMAKE_CURRENT_SOURCE_DIR}/third_party/openthread/output/nrf52840/lib/libnordicsemi-nrf52840-sdk.a)
 
 add_library(libopenthread-nrf52840 STATIC IMPORTED)
 set_property(TARGET libopenthread-nrf52840 PROPERTY IMPORTED_LOCATION ${CMAKE_CURRENT_SOURCE_DIR}/third_party/openthread/output/nrf52840/lib/libopenthread-nrf52840.a)
@@ -51,11 +56,13 @@ add_dependencies(libopenthread-ftd openthread)
 
 set(
     OT_LIBS
-    libopenthread-ftd
     libopenthread-platform-utils
+    libopenthread-ftd
     libmbedcrypto
     libopenthread-nrf52840
-    libopenthread-diag
+    libopenthread-ftd
+    libnordicsemi-nrf52840-radio-driver
+    libnordicsemi-nrf52840-sdk
     libnrf_cc310
 )
 
@@ -192,9 +199,9 @@ if (${PSKD})
     target_compile_definitions(sh_rmt PUBLIC "PSKD=\"${PSKD}\"")
 endif(${PSKD})
 
-if (${COAP_PSK})
-    target_compile_definitions(sh_rmt PUBLIC "COAP_PSK=\"${COAP_PSK}\"")
-endif(${COAP_PSK})
+#if (DEFINED CACHE{COAP_PSK})
+#    target_compile_definitions(sh_rmt PUBLIC "COAP_PSK=\"${COAP_PSK}\"")
+#endif (DEFINED CACHE{COAP_PSK})
 
 target_link_libraries (sh_rmt ${OT_LIBS} nrfx)
 
@@ -241,7 +248,7 @@ set(SH_CNT_SRCS
         src/lib/timer/humi_timer.h
     )
 
-foreach(SH_CNT_VAR dr k lr br)
+foreach(SH_CNT_VAR dr k lr br test)
     set(BIN_NAME sh_cnt_${SH_CNT_VAR})
     add_executable(
             ${BIN_NAME}
@@ -258,9 +265,9 @@ foreach(SH_CNT_VAR dr k lr br)
         target_compile_definitions(${BIN_NAME} PUBLIC "PSKD=\"${PSKD}\"")
     endif(${PSKD})
 
-    if (${COAP_PSK})
+    if (DEFINED CACHE{COAP_PSK})
         target_compile_definitions(${BIN_NAME} PUBLIC "COAP_PSK=\"${COAP_PSK}\"")
-    endif(${COAP_PSK})
+    endif(DEFINED CACHE{COAP_PSK})
 
     target_link_libraries (${BIN_NAME} ${OT_LIBS} nrfx)
 
@@ -322,9 +329,9 @@ if (${PSKD})
     target_compile_definitions(temp_tscrn PUBLIC "PSKD=\"${PSKD}\"")
 endif(${PSKD})
 
-if (${COAP_PSK})
+if (DEFINED CACHE{COAP_PSK})
     target_compile_definitions(temp_tscrn PUBLIC "COAP_PSK=\"${COAP_PSK}\"")
-endif(${COAP_PSK})
+endif (DEFINED CACHE{COAP_PSK})
 
 target_link_libraries (temp_tscrn ${OT_LIBS} nrfx m)
 

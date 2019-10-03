@@ -28,13 +28,15 @@
 #define SD_MAX_DELAY        1500
 
 #define SH_PAYLOAD_MAX_SIZE 128
-#define SH_VALUE_KEY  "val"
-#define SH_VALUE_UP   "up"
-#define SH_VALUE_DOWN "down"
-#define SH_VALUE_STOP "stop"
+#define SH_VALUE_KEY         "val"
+#define SH_VALUE_UP          "up"
+#define SH_VALUE_DOWN        "down"
+#define SH_VALUE_STOP        "stop"
+#define SH_CURRENT_VALUE_KEY "curr"
 
 static void sd_handler(void *context, otMessage *message, const otMessageInfo *message_info);
-static void sh_handler(void *context, otMessage *message, const otMessageInfo *message_info);
+static void sh_non_secure_handler(void *context, otMessage *message, const otMessageInfo *message_info);
+static void sh_secure_handler(void *context, otMessage *message, const otMessageInfo *message_info);
 
 static otCoapResource sd_resource = {
         .mUriPath = "sd",
@@ -46,41 +48,91 @@ static otCoapResource sh_resources[] = {
 #if SH_CNT_LOC_dr
         {
                 .mUriPath = "dr1",
-                .mHandler = sh_handler,
+                .mHandler = sh_non_secure_handler,
                 .mContext = (void *)0,
         },
         {
                 .mUriPath = "dr2",
-                .mHandler = sh_handler,
+                .mHandler = sh_non_secure_handler,
                 .mContext = (void *)1,
         },
 #elif SH_CNT_LOC_k
         {
                 .mUriPath = "dr3",
-                .mHandler = sh_handler,
+                .mHandler = sh_non_secure_handler,
                 .mContext = (void *)0,
         },
         {
                 .mUriPath = "k",
-                .mHandler = sh_handler,
+                .mHandler = sh_non_secure_handler,
                 .mContext = (void *)1,
         },
 #elif SH_CNT_LOC_lr
         {
                 .mUriPath = "lr",
-                .mHandler = sh_handler,
+                .mHandler = sh_non_secure_handler,
                 .mContext = (void *)0,
         },
 #elif SH_CNT_LOC_br
         {
                 .mUriPath = "br",
-                .mHandler = sh_handler,
+                .mHandler = sh_non_secure_handler,
+                .mContext = (void *)0,
+        },
+#elif SH_CNT_LOC_test
+        {
+                .mUriPath = "test",
+                .mHandler = sh_non_secure_handler,
                 .mContext = (void *)0,
         },
 #endif // SH_CNT_LOC_
 };
 
 #ifdef COAP_PSK
+static otCoapResource sh_secure_resources[] = {
+#if SH_CNT_LOC_dr
+        {
+                .mUriPath = "dr1",
+                .mHandler = sh_secure_handler,
+                .mContext = (void *)0,
+        },
+        {
+                .mUriPath = "dr2",
+                .mHandler = sh_secure_handler,
+                .mContext = (void *)1,
+        },
+#elif SH_CNT_LOC_k
+        {
+                .mUriPath = "dr3",
+                .mHandler = sh_secure_handler,
+                .mContext = (void *)0,
+        },
+        {
+                .mUriPath = "k",
+                .mHandler = sh_secure_handler,
+                .mContext = (void *)1,
+        },
+#elif SH_CNT_LOC_lr
+        {
+                .mUriPath = "lr",
+                .mHandler = sh_secure_handler,
+                .mContext = (void *)0,
+        },
+#elif SH_CNT_LOC_br
+        {
+                .mUriPath = "br",
+                .mHandler = sh_secure_handler,
+                .mContext = (void *)0,
+        },
+#elif SH_CNT_LOC_test
+        {
+                .mUriPath = "test",
+                .mHandler = sh_secure_handler,
+                .mContext = (void *)0,
+        },
+#endif // SH_CNT_LOC_
+};
+
 static const char coap_psk[] = COAP_PSK;
 static const char coap_cli_id[] = "def";
 #endif // COAP_PSK
@@ -117,24 +169,21 @@ static void coap_init(void)
     assert (error == OT_ERROR_NONE);
 
 #ifdef COAP_PSK
-    error = otCoapSecureSetPsk(humi_conn_get_instance(), coap_psk, strlen(coap_psk), coap_cli_id, strlen(coap_cli_id));
-    assert(error == OT_ERROR_NONE);
-
+    otCoapSecureSetPsk(humi_conn_get_instance(), coap_psk, strlen(coap_psk), coap_cli_id, strlen(coap_cli_id));
     otCoapSecureSetSslAuthMode(humi_conn_get_instance(), true);
 
-    error = otCoapSecureStart(humi_conn_get_instance(), OT_DEFAULT_COAP_SECURE_PORT, NULL);
+    error = otCoapSecureStart(humi_conn_get_instance(), OT_DEFAULT_COAP_SECURE_PORT);
     assert(error == OT_ERROR_NONE);
 
 #if 0
     otCoapSecureSetClientConnectedCallback(humi_conn_get_instance(), coaps_client_connected, NULL);
 #endif
 
-    for (int i = 0; i < sizeof(sh_resources) / sizeof(sh_resources[0]); i++)
+    for (int i = 0; i < sizeof(sh_secure_resources) / sizeof(sh_secure_resources[0]); i++)
     {
-        error = otCoapSecureAddResource(humi_conn_get_instance(), &sh_resources[i]);
+        error = otCoapSecureAddResource(humi_conn_get_instance(), &sh_secure_resources[i]);
         assert (error == OT_ERROR_NONE);
-    }
-
+    } 
 #endif // COAP_PSK
 }
 
@@ -215,9 +264,9 @@ static void sd_handler(void *context, otMessage *message, const otMessageInfo *m
         return;
     }
 
-    if (!humi_conn_is_addr_local(&message_info->mSockAddr))
+    if (!humi_conn_is_addr_local(&message_info->mPeerAddr))
     {
-        // Allow only local traffic, because there is no encryption at the moment
+        // Allow only local traffic, service discovery must be performed locally.
         return;
     }
 
@@ -233,12 +282,81 @@ static void sd_handler(void *context, otMessage *message, const otMessageInfo *m
     humi_timer_gen_add(&sd_timer);
 }
 
+static size_t create_sd_get_payload(int resource, uint8_t *buffer, size_t buffer_size)
+{
+    sh_cnt_mot_details_t mot_data;
+
+    sh_cnt_mot_get_details(resource, &mot_data);
+
+    mcbor_enc_t cbor;
+    mcbor_enc_init(buffer, buffer_size, &cbor);
+
+    if (mcbor_enc_map(&cbor, 2) != MCBOR_ERR_SUCCESS) return 0;
+
+    // Key
+    if (mcbor_enc_text(&cbor, SH_VALUE_KEY) != MCBOR_ERR_SUCCESS) return 0;
+    // Value
+    if (mcbor_enc_uint(&cbor, mot_data.target_val) != MCBOR_ERR_SUCCESS) return 0;
+
+    // Key
+    if (mcbor_enc_text(&cbor, SH_CURRENT_VALUE_KEY) != MCBOR_ERR_SUCCESS) return 0;
+    // Value
+    if (mcbor_enc_uint(&cbor, mot_data.current_val) != MCBOR_ERR_SUCCESS) return 0;
+
+    return mcbor_get_size(&cbor);
+}
+
+static void sh_get(otMessage *request, const otMessageInfo *message_info, int resource, bool secure)
+{
+    otError    error = OT_ERROR_NONE;
+    otMessage *response;
+
+    uint8_t payload[SD_PAYLOAD_MAX_SIZE];
+    size_t  payload_size;
+
+    response = otCoapNewMessage(humi_conn_get_instance(), NULL);
+    if (response == NULL)
+    {
+        goto exit;
+    }
+
+    otCoapMessageInit(response, OT_COAP_TYPE_ACKNOWLEDGMENT, OT_COAP_CODE_CONTENT);
+    otCoapMessageSetMessageId(response, otCoapMessageGetMessageId(request));
+    otCoapMessageSetToken(response, otCoapMessageGetToken(request), otCoapMessageGetTokenLength(request));
+    otCoapMessageAppendContentFormatOption(response, OT_COAP_OPTION_CONTENT_FORMAT_CBOR);
+    (void)otCoapMessageSetPayloadMarker(response);
+
+    payload_size = create_sd_get_payload(resource, payload, sizeof(payload));
+    assert(payload_size > 0);
+
+    error = otMessageAppend(response, payload, payload_size);
+    if (error != OT_ERROR_NONE)
+    {
+        goto exit;
+    }
+
+    if (secure)
+    {
+        error = otCoapSecureSendResponse(humi_conn_get_instance(), response, message_info);
+    }
+    else
+    {
+        error = otCoapSendResponse(humi_conn_get_instance(), response, message_info);
+    }
+
+exit:
+    if (error != OT_ERROR_NONE && response != NULL)
+    {
+        otMessageFree(response);
+    }
+}
+
 static bool is_cbor_text_equal_to_str(const uint8_t *cbor_text, size_t cbor_text_len, char *str)
 {
     return mcbor_dec_is_text_equal_to_str(cbor_text, cbor_text_len, str);
 }
 
-static void sh_response_send(otMessage *req_header, const otMessageInfo *message_info)
+static void sh_response_send(otMessage *req_header, const otMessageInfo *message_info, bool secure)
 {
     otError    error = OT_ERROR_NONE;
     otMessage *response;
@@ -253,7 +371,14 @@ static void sh_response_send(otMessage *req_header, const otMessageInfo *message
     otCoapMessageSetMessageId(response, otCoapMessageGetMessageId(req_header));
     otCoapMessageSetToken(response, otCoapMessageGetToken(req_header), otCoapMessageGetTokenLength(req_header));
 
-    error = otCoapSendResponse(humi_conn_get_instance(), response, message_info);
+    if (secure)
+    {
+        error = otCoapSecureSendResponse(humi_conn_get_instance(), response, message_info);
+    }
+    else
+    {
+        error = otCoapSendResponse(humi_conn_get_instance(), response, message_info);
+    }
 
 exit:
     if (error != OT_ERROR_NONE && response != NULL)
@@ -275,6 +400,8 @@ static mcbor_err_t process_and_skip_resource(int i, const mcbor_dec_t *mcbor_dec
         const char *value;
         size_t      value_len;
 
+        uint64_t unsigned_value;
+
         err = mcbor_dec_get_text(mcbor_dec, item, &key, &key_len);
 
         if ((err == MCBOR_ERR_NOT_FOUND) || !is_cbor_text_equal_to_str(key, key_len, SH_VALUE_KEY))
@@ -291,46 +418,46 @@ static mcbor_err_t process_and_skip_resource(int i, const mcbor_dec_t *mcbor_dec
             err = mcbor_dec_skip_item(mcbor_dec, &item); // Skip key
             if (err != MCBOR_ERR_SUCCESS) return err;
 
-            err = mcbor_dec_get_text(mcbor_dec, item, &value, &value_len);
-            if (err != MCBOR_ERR_SUCCESS) return err;
+            err = mcbor_dec_get_unsigned(mcbor_dec, item, &unsigned_value);
+            if (err == MCBOR_ERR_SUCCESS)
+            {
+                sh_cnt_mot_val(i, unsigned_value);
 
-            // Process type value
-            if (is_cbor_text_equal_to_str(value, value_len, SH_VALUE_UP))
-            {
-                sh_cnt_mot_up(i);
+                err = mcbor_dec_skip_item(mcbor_dec, &item); // Skip value
+                if (err != MCBOR_ERR_SUCCESS) return err;
             }
-            else if (is_cbor_text_equal_to_str(value, value_len, SH_VALUE_DOWN))
+            else
             {
-                sh_cnt_mot_down(i);
-            }
-            else if (is_cbor_text_equal_to_str(value, value_len, SH_VALUE_STOP))
-            {
-                sh_cnt_mot_stop(i);
-            }
+                err = mcbor_dec_get_text(mcbor_dec, item, &value, &value_len);
+                if (err != MCBOR_ERR_SUCCESS) return err;
 
-            err = mcbor_dec_skip_item(mcbor_dec, &item); // Skip value
-            if (err != MCBOR_ERR_SUCCESS) return err;
+                // Process type value
+                if (is_cbor_text_equal_to_str(value, value_len, SH_VALUE_UP))
+                {
+                    sh_cnt_mot_up(i);
+                }
+                else if (is_cbor_text_equal_to_str(value, value_len, SH_VALUE_DOWN))
+                {
+                    sh_cnt_mot_down(i);
+                }
+                else if (is_cbor_text_equal_to_str(value, value_len, SH_VALUE_STOP))
+                {
+                    sh_cnt_mot_stop(i);
+                }
+
+                err = mcbor_dec_skip_item(mcbor_dec, &item); // Skip value
+                if (err != MCBOR_ERR_SUCCESS) return err;
+            }
         }
     }
+
+    return MCBOR_ERR_SUCCESS;
 }
 
-static void sh_handler(void *context, otMessage *message, const otMessageInfo *message_info)
+static void sh_put(otMessage *message, const otMessageInfo *message_info, int resource, otCoapType coap_type, bool secure)
 {
     char payload[SH_PAYLOAD_MAX_SIZE];
     int payload_len;
-
-    int resource = (int)context;
-
-    if (otCoapMessageGetCode(message) != OT_COAP_CODE_PUT)
-    {
-        return;
-    }
-
-    if (!humi_conn_is_addr_local(&message_info->mPeerAddr))
-    {
-        // Allow only local traffic, because there is no encryption at the moment
-        return;
-    }
 
     payload_len = otMessageRead(message, otMessageGetOffset(message), payload, sizeof(payload));
 
@@ -351,10 +478,45 @@ static void sh_handler(void *context, otMessage *message, const otMessageInfo *m
         if (mcbor_err != MCBOR_ERR_SUCCESS) break;
     }
 
-    if (otCoapMessageGetType(message) == OT_COAP_TYPE_CONFIRMABLE)
+    if (coap_type == OT_COAP_TYPE_CONFIRMABLE)
     {
-        sh_response_send(message, message_info);
+        sh_response_send(message, message_info, secure);
     }
+}
+
+static void sh_handler(void *context, otMessage *message, const otMessageInfo *message_info, bool secure)
+{
+    otCoapCode coap_code;
+    otCoapType coap_type;
+
+    int resource = (int)context;
+    coap_code    = otCoapMessageGetCode(message);
+    coap_type    = otCoapMessageGetType(message);
+
+    if ((coap_code == OT_COAP_CODE_GET) && (coap_type == OT_COAP_TYPE_CONFIRMABLE))
+    {
+        sh_get(message, message_info, resource, secure);
+    }
+    else if (coap_code == OT_COAP_CODE_PUT)
+    {
+        sh_put(message, message_info, resource, coap_type, secure);
+    }
+}
+
+static void sh_secure_handler(void *context, otMessage *message, const otMessageInfo *message_info)
+{
+    sh_handler(context, message, message_info, true);
+}
+
+static void sh_non_secure_handler(void *context, otMessage *message, const otMessageInfo *message_info)
+{
+    if (!humi_conn_is_addr_local(&message_info->mPeerAddr))
+    {
+        // Allow only local traffic, because there is no encryption
+        return;
+    }
+
+    sh_handler(context, message, message_info, false);
 }
 
 static void ot_state_changed(otChangedFlags flags, void *context)
@@ -379,27 +541,29 @@ static void ot_state_changed(otChangedFlags flags, void *context)
                 break;
         }
     }
+}
 
-    if (flags & OT_CHANGED_JOINER_STATE)
+void humi_conn_join_result(otError error)
+{
+    if (error != OT_ERROR_NONE) return;
+
+    otJoinerState j_st = otJoinerGetState(humi_conn_get_instance());
+
+    switch (j_st)
     {
-        otJoinerState j_st = otJoinerGetState(humi_conn_get_instance());
+        case OT_JOINER_STATE_DISCOVER:
+            sh_cnt_display_discovery();
+            break;
 
-        switch (j_st)
-        {
-            case OT_JOINER_STATE_DISCOVER:
-                sh_cnt_display_discovery();
-                break;
+        case OT_JOINER_STATE_CONNECT:
+        case OT_JOINER_STATE_CONNECTED:
+        case OT_JOINER_STATE_ENTRUST:
+            sh_cnt_display_commissioning();
+            break;
 
-            case OT_JOINER_STATE_CONNECT:
-            case OT_JOINER_STATE_CONNECTED:
-            case OT_JOINER_STATE_ENTRUST:
-                sh_cnt_display_commissioning();
-                break;
-
-            case OT_JOINER_STATE_IDLE:
-            case OT_JOINER_STATE_JOINED:
-                break;
-        }
+        case OT_JOINER_STATE_IDLE:
+        case OT_JOINER_STATE_JOINED:
+            break;
     }
 }
 
