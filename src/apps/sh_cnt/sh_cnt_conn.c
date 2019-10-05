@@ -16,6 +16,7 @@
 
 #include "sh_cnt_display.h"
 #include "sh_cnt_pos.h"
+#include "sh_cnt_temp.h"
 #include "../../lib/conn/humi_conn.h"
 #include "../../lib/mcbor/mcbor_dec.h"
 #include "../../lib/mcbor/mcbor_enc.h"
@@ -37,10 +38,23 @@
 static void sd_handler(void *context, otMessage *message, const otMessageInfo *message_info);
 static void sh_non_secure_handler(void *context, otMessage *message, const otMessageInfo *message_info);
 static void sh_secure_handler(void *context, otMessage *message, const otMessageInfo *message_info);
+static void temp_non_secure_handler(void *context, otMessage *message, const otMessageInfo *message_info);
+static void temp_secure_handler(void *context, otMessage *message, const otMessageInfo *message_info);
 
 static otCoapResource sd_resource = {
         .mUriPath = "sd",
         .mHandler = sd_handler,
+        .mContext = NULL,
+};
+
+static otCoapResource temp_resource = {
+        .mUriPath = "temp",
+        .mHandler = temp_non_secure_handler,
+        .mContext = NULL,
+};
+static otCoapResource temp_secure_resource = {
+        .mUriPath = "temp",
+        .mHandler = temp_secure_handler,
         .mContext = NULL,
 };
 
@@ -79,9 +93,9 @@ static otCoapResource sh_resources[] = {
                 .mHandler = sh_non_secure_handler,
                 .mContext = (void *)0,
         },
-#elif SH_CNT_LOC_test
+#elif SH_CNT_LOC_sink
         {
-                .mUriPath = "test",
+                .mUriPath = "hb",
                 .mHandler = sh_non_secure_handler,
                 .mContext = (void *)0,
         },
@@ -124,9 +138,9 @@ static otCoapResource sh_secure_resources[] = {
                 .mHandler = sh_secure_handler,
                 .mContext = (void *)0,
         },
-#elif SH_CNT_LOC_test
+#elif SH_CNT_LOC_sink
         {
-                .mUriPath = "test",
+                .mUriPath = "hb",
                 .mHandler = sh_secure_handler,
                 .mContext = (void *)0,
         },
@@ -167,6 +181,8 @@ static void coap_init(void)
 
     error = otCoapAddResource(humi_conn_get_instance(), &sd_resource);
     assert (error == OT_ERROR_NONE);
+    error = otCoapAddResource(humi_conn_get_instance(), &temp_resource);
+    assert (error == OT_ERROR_NONE);
 
 #ifdef COAP_PSK
     otCoapSecureSetPsk(humi_conn_get_instance(), coap_psk, strlen(coap_psk), coap_cli_id, strlen(coap_cli_id));
@@ -184,6 +200,9 @@ static void coap_init(void)
         error = otCoapSecureAddResource(humi_conn_get_instance(), &sh_secure_resources[i]);
         assert (error == OT_ERROR_NONE);
     } 
+
+    error = otCoapSecureAddResource(humi_conn_get_instance(), &temp_secure_resource);
+    assert (error == OT_ERROR_NONE);
 #endif // COAP_PSK
 }
 
@@ -304,6 +323,104 @@ static size_t create_sd_get_payload(int resource, uint8_t *buffer, size_t buffer
     if (mcbor_enc_uint(&cbor, mot_data.current_val) != MCBOR_ERR_SUCCESS) return 0;
 
     return mcbor_get_size(&cbor);
+}
+
+static size_t create_temp_response_payload(uint8_t *buffer, size_t buffer_size)
+{
+    mcbor_enc_t cbor;
+    mcbor_enc_init(buffer, buffer_size, &cbor);
+
+    if (mcbor_enc_tag(&cbor, MCBOR_TAG_DECIMAL_FRACTION) != MCBOR_ERR_SUCCESS) return 0;
+    if (mcbor_enc_arr(&cbor, 2) != MCBOR_ERR_SUCCESS) return 0;
+    if (mcbor_enc_nint(&cbor, 2) != MCBOR_ERR_SUCCESS) return 0;
+
+    int32_t temp = sh_cnt_temp_get();
+    if (temp >= 0)
+    {
+        if (mcbor_enc_uint(&cbor, temp) != MCBOR_ERR_SUCCESS) return 0;
+    }
+    else
+    {
+        if (mcbor_enc_nint(&cbor, -temp) != MCBOR_ERR_SUCCESS) return 0;
+    }
+
+    return mcbor_get_size(&cbor);
+}
+
+static void temp_response_send(otMessage *request, const otMessageInfo *message_info, bool secure)
+{
+    otError    error = OT_ERROR_NONE;
+    otMessage *response;
+
+    uint8_t payload[SD_PAYLOAD_MAX_SIZE];
+    size_t  payload_size;
+
+    response = otCoapNewMessage(humi_conn_get_instance(), NULL);
+    if (response == NULL)
+    {
+        goto exit;
+    }
+
+    otCoapMessageInit(response, OT_COAP_TYPE_ACKNOWLEDGMENT, OT_COAP_CODE_CONTENT);
+    otCoapMessageSetMessageId(response, otCoapMessageGetMessageId(request));
+    otCoapMessageSetToken(response, otCoapMessageGetToken(request), otCoapMessageGetTokenLength(request));
+    otCoapMessageAppendContentFormatOption(response, OT_COAP_OPTION_CONTENT_FORMAT_CBOR);
+    (void)otCoapMessageSetPayloadMarker(response);
+
+    payload_size = create_temp_response_payload(payload, sizeof(payload));
+    assert(payload_size > 0);
+
+    error = otMessageAppend(response, payload, payload_size);
+    if (error != OT_ERROR_NONE)
+    {
+        goto exit;
+    }
+
+    if (secure)
+    {
+        error = otCoapSecureSendResponse(humi_conn_get_instance(), response, message_info);
+    }
+    else
+    {
+        error = otCoapSendResponse(humi_conn_get_instance(), response, message_info);
+    }
+
+exit:
+    if (error != OT_ERROR_NONE && response != NULL)
+    {
+        otMessageFree(response);
+    }
+}
+
+static void temp_handler(otMessage *message, const otMessageInfo *message_info, bool secure)
+{
+    if (otCoapMessageGetType(message) != OT_COAP_TYPE_CONFIRMABLE)
+    {
+        return;
+    }
+
+    if (otCoapMessageGetCode(message) != OT_COAP_CODE_GET)
+    {
+        return;
+    }
+
+    temp_response_send(message, message_info, secure);
+}
+
+static void temp_secure_handler(void *context, otMessage *message, const otMessageInfo *message_info)
+{
+    temp_handler(message, message_info, true);
+}
+
+static void temp_non_secure_handler(void *context, otMessage *message, const otMessageInfo *message_info)
+{
+    if (!humi_conn_is_addr_local(&message_info->mPeerAddr))
+    {
+        // Allow only local traffic, service discovery must be performed locally.
+        return;
+    }
+
+    temp_handler(message, message_info, false);
 }
 
 static void sh_get(otMessage *request, const otMessageInfo *message_info, int resource, bool secure)

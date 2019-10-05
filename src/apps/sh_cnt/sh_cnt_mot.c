@@ -52,8 +52,8 @@ static const int mov_times[NUM_MOTS] =
         {34000};
 #elif SH_CNT_LOC_br
         {26000};
-#elif SH_CNT_LOC_test
-        {30000};
+#elif SH_CNT_LOC_sink
+        {18000};
 #endif // SH_CNT_LOC_
 
 static struct mot_state {

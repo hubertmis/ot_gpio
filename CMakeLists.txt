@@ -82,6 +82,7 @@ add_library(
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party/nrfx/drivers/src/nrfx_gpiote.c
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party/nrfx/drivers/src/nrfx_rtc.c
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party/nrfx/drivers/src/nrfx_spim.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/nrfx/drivers/src/nrfx_temp.c
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party/nrfx/drivers/src/prs/nrfx_prs.c
 )
 
@@ -221,12 +222,16 @@ set(SH_CNT_SRCS
         src/apps/sh_cnt/sh_cnt_display.h
         src/apps/sh_cnt/sh_cnt_led.c
         src/apps/sh_cnt/sh_cnt_led.h
+        src/apps/sh_cnt/sh_cnt_loc_act.c
+        src/apps/sh_cnt/sh_cnt_loc_act.h
         src/apps/sh_cnt/sh_cnt_mot.c
         src/apps/sh_cnt/sh_cnt_mot.h
         src/apps/sh_cnt/sh_cnt_pos.c
         src/apps/sh_cnt/sh_cnt_pos.h
         src/apps/sh_cnt/sh_cnt_rly.c
         src/apps/sh_cnt/sh_cnt_rly.h
+        src/apps/sh_cnt/sh_cnt_temp.c
+        src/apps/sh_cnt/sh_cnt_temp.h
         src/lib/btn/humi_btn.c
         src/lib/btn/humi_btn.h
         src/lib/conn/humi_conn.c
@@ -250,7 +255,7 @@ set(SH_CNT_SRCS
         src/lib/timer/humi_timer.h
     )
 
-foreach(SH_CNT_VAR dr k lr br test)
+foreach(SH_CNT_VAR dr k lr br sink)
     set(BIN_NAME sh_cnt_${SH_CNT_VAR})
     add_executable(
             ${BIN_NAME}

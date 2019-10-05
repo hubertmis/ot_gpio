@@ -8,8 +8,10 @@
 #include "sh_cnt_btn.h"
 #include "sh_cnt_conn.h"
 #include "sh_cnt_display.h"
+#include "sh_cnt_loc_act.h"
 #include "sh_cnt_mot.h"
 #include "sh_cnt_pos.h"
+#include "sh_cnt_temp.h"
 #include "../../lib/timer/humi_timer.h"
 
 #include "sh_cnt_rly.h"
@@ -111,8 +113,10 @@ int main(int argc, char *argv[])
 
     sh_cnt_btn_init();
     sh_cnt_display_init();
+    sh_cnt_loc_act_init();
     sh_cnt_mot_init();
     sh_cnt_pos_init();
+    sh_cnt_temp_init();
 
     nrf_gpio_pin_set(22);
     delay_ms(100);
@@ -126,6 +130,9 @@ int main(int argc, char *argv[])
     delay_ms(25);
     nrf_gpio_pin_clear(22);
 
+#if SH_CNT_LOC_sink
+    sh_cnt_loc_act_set(0, SH_CNT_LOC_ACT_CYCLIC_EDGES);
+#endif
 
     sh_cnt_conn_init();
 

@@ -41,12 +41,12 @@ static int update_position(sh_cnt_mot_idx_t idx, sh_cnt_pos_t pos_idx, uint16_t 
     {
         if (req_positions[idx][i] != SH_CNT_POS_STOP)
         {
-            req_position  = (i == pos_idx) ? val : req_positions[idx][i];
+            req_position  = req_positions[idx][i];
             valid_pos_idx = i;
         }
     }
 
-    if ((valid_pos_idx == pos_idx) || (req_position == SH_CNT_POS_STOP))
+    if (valid_pos_idx <= pos_idx)
     {
         switch (req_position)
         {

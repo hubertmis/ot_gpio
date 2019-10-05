@@ -92,6 +92,20 @@ mcbor_err_t mcbor_enc_uint(mcbor_enc_t *mcbor_enc, unsigned long value)
     return MCBOR_ERR_SUCCESS;
 }
 
+mcbor_err_t mcbor_enc_nint(mcbor_enc_t *mcbor_enc, unsigned long negated_value)
+{
+    mcbor_err_t err;
+
+    if (negated_value == 0) return MCBOR_ERR_INVALID_ARG;
+
+    char *init_ptr = get_buf_ptr(mcbor_enc);
+
+    err = mcbor_enc_uint(mcbor_enc, negated_value-1);
+    if (err != MCBOR_ERR_SUCCESS) return err;
+
+    *init_ptr |= MAJ_TYPE_NEGINT;
+}
+
 mcbor_err_t mcbor_enc_text(mcbor_enc_t *mcbor_enc, const char *text)
 {
     mcbor_err_t err;
@@ -111,6 +125,20 @@ mcbor_err_t mcbor_enc_text(mcbor_enc_t *mcbor_enc, const char *text)
     return MCBOR_ERR_SUCCESS;
 }
 
+mcbor_err_t mcbor_enc_arr(mcbor_enc_t *mcbor_enc, int num_items)
+{
+    mcbor_err_t err;
+
+    char *init_ptr = get_buf_ptr(mcbor_enc);
+
+    err = mcbor_enc_uint(mcbor_enc, num_items);
+    if (err != MCBOR_ERR_SUCCESS) return err;
+
+    *init_ptr |= MAJ_TYPE_ARRAY;
+
+    return MCBOR_ERR_SUCCESS;
+}
+
 mcbor_err_t mcbor_enc_map(mcbor_enc_t *mcbor_enc, int num_pairs)
 {
     mcbor_err_t err;
@@ -121,5 +149,21 @@ mcbor_err_t mcbor_enc_map(mcbor_enc_t *mcbor_enc, int num_pairs)
     if (err != MCBOR_ERR_SUCCESS) return err;
 
     *init_ptr |= MAJ_TYPE_MAP;
+
+    return MCBOR_ERR_SUCCESS;
+}
+
+mcbor_err_t mcbor_enc_tag(mcbor_enc_t *mcbor_enc, mcbor_tag_t tag)
+{
+    mcbor_err_t err;
+
+    char *init_ptr = get_buf_ptr(mcbor_enc);
+
+    err = mcbor_enc_uint(mcbor_enc, tag);
+    if (err != MCBOR_ERR_SUCCESS) return err;
+
+    *init_ptr |= MAJ_TYPE_OPT;
+
+    return MCBOR_ERR_SUCCESS;
 }
 
