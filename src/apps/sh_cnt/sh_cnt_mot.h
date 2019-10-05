@@ -18,12 +18,12 @@ typedef struct {
  *
  * @param[in] tot_mov_time  Total movement time in one direction [ms].
  */
-void sh_cnt_mot_init(int tot_mov_time);
+void sh_cnt_mot_init(void);
 
 void sh_cnt_mot_up(sh_cnt_mot_idx_t idx);
 void sh_cnt_mot_down(sh_cnt_mot_idx_t idx);
 void sh_cnt_mot_stop(sh_cnt_mot_idx_t idx);
-void sh_cnt_mot_val(sh_cnt_mot_idx_t idx, uint16_t val);
+int sh_cnt_mot_val(sh_cnt_mot_idx_t idx, uint16_t val);
 
 void sh_cnt_mot_get_details(sh_cnt_mot_idx_t idx, sh_cnt_mot_details_t *details);
 

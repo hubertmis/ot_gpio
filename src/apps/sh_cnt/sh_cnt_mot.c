@@ -19,7 +19,7 @@
 #define TOT_FACTOR     312
 #define TOT_FACTOR_REL 256
 
-#define TOT_TIME (mov_time * TOT_FACTOR / TOT_FACTOR_REL)
+#define TOT_TIME(mov_time) (mov_time * TOT_FACTOR / TOT_FACTOR_REL)
 
 #define STATE_MIN  0
 #define STATE_MAX  256
@@ -43,7 +43,18 @@ const struct rlys {
         {2, 3},
 };
 
-static int mov_time;
+static const int mov_times[NUM_MOTS] =
+#if SH_CNT_LOC_dr
+        {26000, 26000};
+#elif SH_CNT_LOC_k
+        {26000, 29000};
+#elif SH_CNT_LOC_lr
+        {34000};
+#elif SH_CNT_LOC_br
+        {26000};
+#elif SH_CNT_LOC_test
+        {30000};
+#endif // SH_CNT_LOC_
 
 static struct mot_state {
     humi_timer_t timer;
@@ -52,6 +63,7 @@ static struct mot_state {
     req_state_t  last_state;
     uint32_t     last_state_timestamp;
     mov_dir_t    mov_dir;
+    int          mov_time;
 
     bool rly_on;
     bool rly_down;
@@ -64,10 +76,12 @@ static req_state_t get_curr_state(struct mot_state *mot_state)
 {
     int32_t curr_state;
 
+    if (mot_state->last_state == STATE_STOP) return STATE_STOP;
+
     uint32_t now       = humi_timer_get_time();
     uint32_t time_diff = humi_timer_get_time_diff(now, mot_state->last_state_timestamp);
 
-    int32_t state_diff = (STATE_MAX * time_diff + (mov_time / 2)) / mov_time;
+    int32_t state_diff = (STATE_MAX * time_diff + (mot_state->mov_time / 2)) / mot_state->mov_time;
 
     switch (mot_state->mov_dir)
     {
@@ -121,13 +135,17 @@ static void set_timer_to_stop(struct mot_state *mot_state, uint32_t time_diff)
 
     if (mot_state->req_state == STATE_MAX || mot_state->req_state == STATE_MIN)
     {
-        delay = TOT_TIME;
+        delay = TOT_TIME(mot_state->mov_time);
     }
 
     humi_timer_gen_remove(&mot_state->timer);
-    mot_state->timer.target_time = humi_timer_get_target_from_delay(delay);
+
+    uint32_t now                 = humi_timer_get_time();
+    mot_state->timer.target_time = humi_timer_get_target(now, delay);
     mot_state->timer.callback    = stop;
     humi_timer_gen_add(&mot_state->timer);
+
+    mot_state->last_state_timestamp = now;
 }
 
 static void set_timer_to_move(struct mot_state *mot_state)
@@ -144,7 +162,9 @@ static bool is_timer_running_to_move(struct mot_state *mot_state)
 
 static void set_req_state(sh_cnt_mot_idx_t idx, req_state_t req_state)
 {
-    if (get_curr_state(&mot_states[idx]) != req_state)
+    req_state_t curr_state = get_curr_state(&mot_states[idx]);
+
+    if ((curr_state != req_state) || (req_state == STATE_STOP))
     {
         mot_states[idx].req_state = req_state;
         move((void *) idx);
@@ -248,6 +268,21 @@ static void stop(void *context)
 
     sh_cnt_mot_idx_t idx = (sh_cnt_mot_idx_t)context;
 
+    if (mot_states[idx].last_state == STATE_STOP)
+    {
+        switch (mot_states[idx].req_state)
+        {
+            case STATE_UP:
+            case STATE_DOWN:
+                mot_states[idx].last_state = mot_states[idx].req_state;
+                break;
+
+            default:
+                // Intentionally empty.
+                break;
+        }
+    }
+
     set_req_state(idx, STATE_STOP);
 
     llog(EV_EXIT, FN_CB_STOP);
@@ -277,7 +312,26 @@ static void move(void *context) {
         req_state_t curr_state = get_curr_state(mot_state);
         req_state_t state_diff;
 
-        if (curr_state < mot_state->req_state)
+        if (curr_state == STATE_STOP)
+        {
+            // Special case when the state is unknown
+            switch (mot_state->req_state)
+            {
+                case STATE_UP:
+                    req_mov_dir = MOV_DIR_UP;
+                    break;
+
+                case STATE_DOWN:
+                    req_mov_dir = MOV_DIR_DOWN;
+                    break;
+
+                default:
+                    return;
+            }
+
+            state_diff = STATE_MAX;
+        }
+        else if (curr_state < mot_state->req_state)
         {
             req_mov_dir = MOV_DIR_DOWN;
             state_diff = mot_state->req_state - curr_state;
@@ -293,7 +347,7 @@ static void move(void *context) {
             state_diff = 0;
         }
 
-        uint32_t time_diff = (state_diff * mov_time + (STATE_MAX / 2)) / STATE_MAX;
+        uint32_t time_diff = (state_diff * mot_state->mov_time + (STATE_MAX / 2)) / STATE_MAX;
 
         // Check if current movement direction is as required.
         if (mot_state->mov_dir == req_mov_dir)
@@ -333,17 +387,15 @@ static void move(void *context) {
     llog(EV_EXIT, FN_CB_MOVE);
 }
 
-void sh_cnt_mot_init(int tot_mov_time)
+void sh_cnt_mot_init(void)
 {
     sh_cnt_rly_init();
 
-    mov_time = tot_mov_time;
-
     for (int i = 0; i < NUM_MOTS; i++)
     {
-        mot_states[i].last_state    = STATE_DOWN;
+        mot_states[i].mov_time      = mov_times[i];
+        mot_states[i].last_state    = STATE_STOP;
         mot_states[i].timer.context = (void *)i;
-        set_req_state(i, STATE_UP);
     }
 }
 
@@ -377,11 +429,29 @@ void sh_cnt_mot_stop(sh_cnt_mot_idx_t idx)
     llog(EV_EXIT, FN_STOP);
 }
 
-void sh_cnt_mot_val(sh_cnt_mot_idx_t idx, uint16_t val)
+int sh_cnt_mot_val(sh_cnt_mot_idx_t idx, uint16_t val)
 {
-    if (val > STATE_MAX) return;
+    if (val > STATE_MAX) return -1;
+
+    req_state_t curr_state = get_curr_state(&mot_states[idx]);
+
+    if (curr_state == STATE_STOP)
+    {
+        // Current state is unknown
+        switch (val)
+        {
+            case STATE_UP:
+            case STATE_DOWN:
+                // Intentionally empty: we can proceed with these states regardles uknown state.
+                break;
+
+            default:
+                return -2;
+        }
+    }
 
     set_req_state(idx, (req_state_t)val);
+    return 0;
 }
 
 void sh_cnt_mot_get_details(sh_cnt_mot_idx_t idx, sh_cnt_mot_details_t *details)

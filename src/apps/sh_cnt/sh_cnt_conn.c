@@ -356,10 +356,27 @@ static bool is_cbor_text_equal_to_str(const uint8_t *cbor_text, size_t cbor_text
     return mcbor_dec_is_text_equal_to_str(cbor_text, cbor_text_len, str);
 }
 
-static void sh_response_send(otMessage *req_header, const otMessageInfo *message_info, bool secure)
+static void sh_response_send(otMessage *req_header, const otMessageInfo *message_info, bool secure, int result)
 {
     otError    error = OT_ERROR_NONE;
     otMessage *response;
+    otCoapCode response_code;
+
+    switch (result)
+    {
+        case 0:
+            response_code = OT_COAP_CODE_CHANGED;
+            break;
+
+        case -1:
+            response_code = OT_COAP_CODE_BAD_REQUEST;
+            break;
+
+        case -2:
+        default:
+            response_code = OT_COAP_CODE_INTERNAL_ERROR;
+            break;
+    }
 
     response = otCoapNewMessage(humi_conn_get_instance(), NULL);
     if (response == NULL)
@@ -367,7 +384,7 @@ static void sh_response_send(otMessage *req_header, const otMessageInfo *message
         goto exit;
     }
 
-    otCoapMessageInit(response, OT_COAP_TYPE_ACKNOWLEDGMENT, OT_COAP_CODE_CHANGED);
+    otCoapMessageInit(response, OT_COAP_TYPE_ACKNOWLEDGMENT, response_code);
     otCoapMessageSetMessageId(response, otCoapMessageGetMessageId(req_header));
     otCoapMessageSetToken(response, otCoapMessageGetToken(req_header), otCoapMessageGetTokenLength(req_header));
 
@@ -387,7 +404,7 @@ exit:
     }
 }
 
-static mcbor_err_t process_and_skip_resource(int i, const mcbor_dec_t *mcbor_dec, const void *resource_map, int pairs)
+static mcbor_err_t process_and_skip_resource(int i, const mcbor_dec_t *mcbor_dec, const void *resource_map, int pairs, int *result)
 {
     const void *item = resource_map;
     mcbor_err_t err;
@@ -421,7 +438,7 @@ static mcbor_err_t process_and_skip_resource(int i, const mcbor_dec_t *mcbor_dec
             err = mcbor_dec_get_unsigned(mcbor_dec, item, &unsigned_value);
             if (err == MCBOR_ERR_SUCCESS)
             {
-                sh_cnt_mot_val(i, unsigned_value);
+                *result = sh_cnt_mot_val(i, unsigned_value);
 
                 err = mcbor_dec_skip_item(mcbor_dec, &item); // Skip value
                 if (err != MCBOR_ERR_SUCCESS) return err;
@@ -435,14 +452,21 @@ static mcbor_err_t process_and_skip_resource(int i, const mcbor_dec_t *mcbor_dec
                 if (is_cbor_text_equal_to_str(value, value_len, SH_VALUE_UP))
                 {
                     sh_cnt_mot_up(i);
+                    *result = 0;
                 }
                 else if (is_cbor_text_equal_to_str(value, value_len, SH_VALUE_DOWN))
                 {
                     sh_cnt_mot_down(i);
+                    *result = 0;
                 }
                 else if (is_cbor_text_equal_to_str(value, value_len, SH_VALUE_STOP))
                 {
                     sh_cnt_mot_stop(i);
+                    *result = 0;
+                }
+                else
+                {
+                    *result = -1;
                 }
 
                 err = mcbor_dec_skip_item(mcbor_dec, &item); // Skip value
@@ -465,6 +489,7 @@ static void sh_put(otMessage *message, const otMessageInfo *message_info, int re
     mcbor_dec_t    mcbor_dec;
     const void    *top_map_item;
     int            pairs;
+    int            result = -1;
 
     mcbor_dec_init(payload, payload_len, &mcbor_dec);
     mcbor_dec_iter_init(&mcbor_dec, &iter);
@@ -474,13 +499,13 @@ static void sh_put(otMessage *message, const otMessageInfo *message_info, int re
          err = mcbor_dec_iter_map(&mcbor_dec, &iter, &top_map_item, &pairs))
     {
         mcbor_err_t mcbor_err;
-        mcbor_err = process_and_skip_resource(resource, &mcbor_dec, top_map_item, pairs);
+        mcbor_err = process_and_skip_resource(resource, &mcbor_dec, top_map_item, pairs, &result);
         if (mcbor_err != MCBOR_ERR_SUCCESS) break;
     }
 
     if (coap_type == OT_COAP_TYPE_CONFIRMABLE)
     {
-        sh_response_send(message, message_info, secure);
+        sh_response_send(message, message_info, secure, result);
     }
 }
 
