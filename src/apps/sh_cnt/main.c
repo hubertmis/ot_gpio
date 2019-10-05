@@ -9,6 +9,7 @@
 #include "sh_cnt_conn.h"
 #include "sh_cnt_display.h"
 #include "sh_cnt_mot.h"
+#include "sh_cnt_pos.h"
 #include "../../lib/timer/humi_timer.h"
 
 #include "sh_cnt_rly.h"
@@ -111,6 +112,7 @@ int main(int argc, char *argv[])
     sh_cnt_btn_init();
     sh_cnt_display_init();
     sh_cnt_mot_init();
+    sh_cnt_pos_init();
 
     nrf_gpio_pin_set(22);
     delay_ms(100);

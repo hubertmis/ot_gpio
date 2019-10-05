@@ -15,7 +15,7 @@
 #include <openthread/thread.h>
 
 #include "sh_cnt_display.h"
-#include "sh_cnt_mot.h"
+#include "sh_cnt_pos.h"
 #include "../../lib/conn/humi_conn.h"
 #include "../../lib/mcbor/mcbor_dec.h"
 #include "../../lib/mcbor/mcbor_enc.h"
@@ -438,7 +438,7 @@ static mcbor_err_t process_and_skip_resource(int i, const mcbor_dec_t *mcbor_dec
             err = mcbor_dec_get_unsigned(mcbor_dec, item, &unsigned_value);
             if (err == MCBOR_ERR_SUCCESS)
             {
-                *result = sh_cnt_mot_val(i, unsigned_value);
+                *result = sh_cnt_pos_remote_set(i, unsigned_value);
 
                 err = mcbor_dec_skip_item(mcbor_dec, &item); // Skip value
                 if (err != MCBOR_ERR_SUCCESS) return err;
@@ -451,18 +451,15 @@ static mcbor_err_t process_and_skip_resource(int i, const mcbor_dec_t *mcbor_dec
                 // Process type value
                 if (is_cbor_text_equal_to_str(value, value_len, SH_VALUE_UP))
                 {
-                    sh_cnt_mot_up(i);
-                    *result = 0;
+                    *result = sh_cnt_pos_remote_set(i, SH_CNT_POS_UP);
                 }
                 else if (is_cbor_text_equal_to_str(value, value_len, SH_VALUE_DOWN))
                 {
-                    sh_cnt_mot_down(i);
-                    *result = 0;
+                    *result = sh_cnt_pos_remote_set(i, SH_CNT_POS_DOWN);
                 }
                 else if (is_cbor_text_equal_to_str(value, value_len, SH_VALUE_STOP))
                 {
-                    sh_cnt_mot_stop(i);
-                    *result = 0;
+                    *result = sh_cnt_pos_remote_set(i, SH_CNT_POS_STOP);
                 }
                 else
                 {

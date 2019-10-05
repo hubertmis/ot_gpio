@@ -13,7 +13,7 @@
 #include "../../lib/lite_log/log_data.h"
 #include "../../lib/timer/humi_timer.h"
 
-#define NUM_MOTS 2
+#define NUM_MOTS SH_CNT_MOT_NUM
 #define RLY_DELAY 250
 
 #define TOT_FACTOR     312
@@ -452,6 +452,12 @@ int sh_cnt_mot_val(sh_cnt_mot_idx_t idx, uint16_t val)
 
     set_req_state(idx, (req_state_t)val);
     return 0;
+}
+
+bool sh_cnt_mot_val_is_correct(sh_cnt_mot_idx_t idx, uint16_t val)
+{
+    (void)idx;
+    return val <= STATE_MAX;
 }
 
 void sh_cnt_mot_get_details(sh_cnt_mot_idx_t idx, sh_cnt_mot_details_t *details)

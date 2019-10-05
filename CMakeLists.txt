@@ -223,6 +223,8 @@ set(SH_CNT_SRCS
         src/apps/sh_cnt/sh_cnt_led.h
         src/apps/sh_cnt/sh_cnt_mot.c
         src/apps/sh_cnt/sh_cnt_mot.h
+        src/apps/sh_cnt/sh_cnt_pos.c
+        src/apps/sh_cnt/sh_cnt_pos.h
         src/apps/sh_cnt/sh_cnt_rly.c
         src/apps/sh_cnt/sh_cnt_rly.h
         src/lib/btn/humi_btn.c
