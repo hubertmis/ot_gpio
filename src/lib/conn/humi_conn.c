@@ -40,13 +40,17 @@
 #define VENDOR_DATA NULL
 #endif
 
+#define NUM_SLAAC_ADDRESSES 4
 
-static otInstance *ot_instance;
+static otInstance    *ot_instance;
+static otNetifAddress slaac_addresses[NUM_SLAAC_ADDRESSES];
 static int fast_pp_req;
 
 static void join_callback(otError error, void *context)
 {
     (void)context;
+
+    humi_conn_join_result(error);
 
     if (error == OT_ERROR_NONE)
     {
@@ -61,9 +65,6 @@ static void join_callback(otError error, void *context)
 
 void humi_conn_init(bool sed) {
     otError error;
-    struct otIp6Address site_local_all_nodes_addr = {.mFields = {.m8 = 
-        {0xff, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01} }};
 
     otSysInit(0, NULL);
 
@@ -99,9 +100,6 @@ void humi_conn_init(bool sed) {
 
     error = otThreadSetLinkMode(ot_instance, link_mode_config);
     assert(error == OT_ERROR_NONE);
-
-    error = otIp6SubscribeMulticastAddress(ot_instance, &site_local_all_nodes_addr);
-    assert(error == OT_ERROR_NONE);
 }
 
 void humi_conn_process(void)
@@ -125,6 +123,9 @@ bool humi_conn_is_commissioned(void)
 void humi_conn_start(void)
 {
     otError error;
+    struct otIp6Address site_local_all_nodes_addr = {.mFields = {.m8 =
+            {0xff, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01} }};
 
     if (humi_conn_is_commissioned())
     {
@@ -132,6 +133,9 @@ void humi_conn_start(void)
         assert(error == OT_ERROR_NONE);
 
         error = otThreadSetEnabled(ot_instance, true);
+        assert(error == OT_ERROR_NONE);
+
+        error = otIp6SubscribeMulticastAddress(ot_instance, &site_local_all_nodes_addr);
         assert(error == OT_ERROR_NONE);
     }
     else
@@ -241,4 +245,9 @@ void otPlatLog(otLogLevel aLogLevel, otLogRegion aLogRegion, const char *aFormat
 }
 #pragma clang diagnostic pop
 #endif
+
+ __attribute__((weak)) void humi_conn_join_result(otError error)
+{
+    (void)error;
+}
 

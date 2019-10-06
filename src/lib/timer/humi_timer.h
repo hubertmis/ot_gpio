@@ -51,6 +51,14 @@ uint32_t humi_timer_get_target(uint32_t t0, uint32_t dt);
  */
 uint32_t humi_timer_get_target_from_delay(uint32_t delay);
 
+/** @brief Get time elapsed between timestamps @p t1 and @p t2.
+ *
+ * @param t2  Later timestamp [RTC ticks]
+ * @param t1  Earlier timestamp [RTC ticks]
+ * @return    Time difference [ms]
+ */
+uint32_t humi_timer_get_time_diff(uint32_t t2, uint32_t t1);
+
 /** @brief Start timer that is going to be triggered at given target time.
  *
  * @param timer  Pointer to a structure containing timer definition.
@@ -62,5 +70,13 @@ void humi_timer_gen_add(humi_timer_t *timer);
  * @param timer  Pointer to a structure containing timer to stop.
  */
 void humi_timer_gen_remove(humi_timer_t *timer);
+
+/** @brief Check if the given timer is running.
+ *
+ * @param  timer  Pointer to a structure containing a timer to check.
+ * @retval true   The given timer is running at the moment.
+ * @retval false  The given timer is not running at the moment.
+ */
+bool humi_timer_gen_is_running(const humi_timer_t *timer);
 
 #endif //OT_GPIO_HUMI_TIMER_H

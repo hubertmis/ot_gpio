@@ -288,8 +288,7 @@ static void sd_request(void)
     (void)otCoapMessageAppendUriPathOptions(request, "sd");
 
     memset(&message_info, 0, sizeof(message_info));
-    message_info.mInterfaceId = OT_NETIF_INTERFACE_ID_THREAD;
-    message_info.mPeerPort    = OT_DEFAULT_COAP_PORT;
+    message_info.mPeerPort = OT_DEFAULT_COAP_PORT;
     (void)otIp6AddressFromString("ff03::1", &message_info.mPeerAddr);
 
     error = otCoapSendRequest(humi_conn_get_instance(), request, &message_info, sd_response_handler, NULL);
@@ -398,8 +397,11 @@ static void ot_state_changed(otChangedFlags flags, void *context)
                 break;
         }
     }
+}
 
-    if (flags & OT_CHANGED_JOINER_STATE)
+void humi_conn_join_result(otError error)
+{
+    if (error == OT_ERROR_NONE)
     {
         otJoinerState j_st = otJoinerGetState(humi_conn_get_instance());
 
@@ -518,9 +520,8 @@ static bool send_zone_request(req_t req, int zone, const otIp6Address *zone_addr
     error = otCoapSecureSendRequest(humi_conn_get_instance(), request, zone_response_handler, NULL);
 #else // COAP_PSK
     memset(&message_info, 0, sizeof(message_info));
-    message_info.mInterfaceId = OT_NETIF_INTERFACE_ID_THREAD;
-    message_info.mPeerPort    = OT_DEFAULT_COAP_PORT;
-    message_info.mPeerAddr    = *zone_addr;
+    message_info.mPeerPort = OT_DEFAULT_COAP_PORT;
+    message_info.mPeerAddr = *zone_addr;
 
     error = otCoapSendRequest(humi_conn_get_instance(), request, &message_info, zone_response_handler, NULL);
 #endif // COAP_PSK

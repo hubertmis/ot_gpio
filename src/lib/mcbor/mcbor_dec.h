@@ -7,6 +7,7 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 #include "mcbor_types.h"
 
 typedef struct {
@@ -24,6 +25,7 @@ void mcbor_dec_iter_init(const mcbor_dec_t *mcbor_dec, mcbor_iter_t *mcbor_iter)
 mcbor_err_t mcbor_get_first_item(const mcbor_dec_t *mcbor_dec, const void **item);
 mcbor_err_t mcbor_dec_skip_item(const mcbor_dec_t *mcbor_dec, const void **item);
 
+mcbor_err_t mcbor_dec_get_unsigned(const mcbor_dec_t *mcbor_dec, const void *item, uint64_t *number);
 mcbor_err_t mcbor_dec_get_text(const mcbor_dec_t *mcbor_dec, const void *item, const char **text, size_t *len);
 mcbor_err_t mcbor_dec_get_map(const mcbor_dec_t *mcbor_dec, const void *item, const void **first_key, int *pairs);
 
