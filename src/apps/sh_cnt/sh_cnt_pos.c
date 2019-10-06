@@ -13,11 +13,11 @@ typedef enum
 
 uint16_t req_positions[SH_CNT_MOT_NUM][SH_CNT_POS_NUM];
 
-static int update_position(sh_cnt_mot_idx_t idx, sh_cnt_pos_t pos_idx, uint16_t val)
+static int update_position(sh_cnt_mot_idx_t idx, int pos_idx, uint16_t val)
 {
-    int          result;
-    uint16_t     req_position   = SH_CNT_POS_STOP;
-    sh_cnt_pos_t valid_pos_idx  = -1;
+    int      result;
+    uint16_t req_position   = SH_CNT_POS_STOP;
+    int      valid_pos_idx  = -1;
 
     assert(idx < SH_CNT_MOT_NUM);
     assert(pos_idx < SH_CNT_POS_NUM);
