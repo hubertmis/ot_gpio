@@ -9,8 +9,8 @@
 
 #define EDGE_TIME 40000
 
-#define CYCLE_TIME (1000UL * 60UL * 60UL)
-#define NUM_CYCLES (24UL * 15UL)
+#define CYCLE_TIME (1000UL * 60UL) // 1 minute
+#define NUM_CYCLES (60UL * 24UL * 15UL) // 15 days
 
 typedef struct
 {
